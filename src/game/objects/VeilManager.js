@@ -1,4 +1,5 @@
 import { COLS, ROWS, HEX_DIRS } from '../constants.js';
+import { AudioManager } from '../managers/AudioManager.js';
 
 export class VeilManager {
   constructor(scene, hexGrid, veilConfig) {
@@ -52,6 +53,7 @@ export class VeilManager {
     const spread = Phaser.Utils.Array.Shuffle(toAdd).slice(0, maxSpread);
     if (spread.length > 0) {
       this.hexGrid.spreadVeil(spread);
+      AudioManager.playVeilSpread();
       this.scene.events.emit('veilSpread', spread);
     }
   }

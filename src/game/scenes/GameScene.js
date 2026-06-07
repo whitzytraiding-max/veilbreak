@@ -8,6 +8,7 @@ import { getLevelData } from '../data/levels.js';
 import { GameState } from '../managers/GameState.js';
 import { LivesManager } from '../managers/LivesManager.js';
 import { AdManager } from '../managers/AdManager.js';
+import { AudioManager } from '../managers/AudioManager.js';
 
 export class GameScene extends Phaser.Scene {
   constructor() { super('Game'); }
@@ -50,6 +51,8 @@ export class GameScene extends Phaser.Scene {
       goalProgress: this.goalProgress,
     });
     this.uiScene = this.scene.get('UIOverlay');
+
+    AudioManager.startAmbient(this.levelData.chapter || 1);
   }
 
   // ── Goal tracking ───────────────────────────────────────────────────────────
@@ -83,6 +86,7 @@ export class GameScene extends Phaser.Scene {
     const chainLen = chain.length;
     if (chainLen > this.longestChain) this.longestChain = chainLen;
 
+    AudioManager.playChainClear(chain[0].type, chainLen);
     this._tickGoal('CHAIN', chainLen);
     this.effects.chainGlow(chain);
 
@@ -107,6 +111,7 @@ export class GameScene extends Phaser.Scene {
     this._lockInput();
 
     GameState.recordConvergence();
+    AudioManager.playConvergence();
     const type = chain[0].type;
 
     // Collect all nodes of matching type on board
@@ -146,16 +151,19 @@ export class GameScene extends Phaser.Scene {
     this.uiScene?.updateMoves(this.movesLeft);
 
     if (this._allGoalsMet()) {
+      AudioManager.playWin();
       this.time.delayedCall(400, () => this._win());
       return;
     }
 
     if (this.veilManager.isBoardLost()) {
+      AudioManager.playFail();
       this.time.delayedCall(400, () => this._fail('veil'));
       return;
     }
 
     if (this.movesLeft <= 0) {
+      AudioManager.playFail();
       this.time.delayedCall(500, () => this._fail('moves'));
       return;
     }
@@ -287,6 +295,7 @@ export class GameScene extends Phaser.Scene {
   // ── Cleanup ─────────────────────────────────────────────────────────────────
 
   shutdown() {
+    AudioManager.stopAmbient();
     this.chainDrawer?.destroy();
     this.hexGrid?.destroy();
     this.effects?.destroy();

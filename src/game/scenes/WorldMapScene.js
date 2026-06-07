@@ -14,6 +14,11 @@ const LEVEL_DOTS = [
   // Chapter 2 path
   { x: 235, y: 490 }, { x: 285, y: 535 }, { x: 320, y: 585 },
   { x: 280, y: 635 }, { x: 230, y: 660 },
+  // Chapter 3 path
+  { x: 180, y: 690 }, { x: 130, y: 720 }, { x: 90,  y: 755 },
+  { x: 110, y: 795 }, { x: 150, y: 830 }, { x: 200, y: 855 },
+  { x: 250, y: 870 }, { x: 300, y: 850 }, { x: 320, y: 815 },
+  { x: 300, y: 780 },
 ];
 
 export class WorldMapScene extends Phaser.Scene {

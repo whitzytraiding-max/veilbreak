@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { NODE_CONFIG, COLORS, ANIM, DEPTHS } from '../constants.js';
+import { AudioManager } from '../managers/AudioManager.js';
 
 export class ChainDrawer {
   constructor(scene, hexGrid) {
@@ -36,6 +37,7 @@ export class ChainDrawer {
     this.chain = [node];
     this.pendingConvergence = false;
     node.highlight(true);
+    AudioManager.playNodeAdd(node.type);
     this._redrawLine();
   }
 
@@ -79,6 +81,7 @@ export class ChainDrawer {
     ) {
       this.chain.push(node);
       node.highlight(true);
+      AudioManager.playNodeAdd(node.type);
       this._redrawLine();
 
       // Also clear adjacent veil when extending chain

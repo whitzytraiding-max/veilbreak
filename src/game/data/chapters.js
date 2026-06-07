@@ -68,4 +68,27 @@ export const CHAPTERS = [
       },
     ],
   },
+  {
+    id: 4,
+    title: 'The Pale Sky',
+    subtitle: 'Islands that drift between worlds',
+    bgColor: 0x0A0A18,
+    accentColor: 0xAACCFF,
+    nodeTypes: ['FIRE', 'WATER', 'EARTH', 'AIR', 'SHADOW', 'LIGHT'],
+    unlocked: false,
+    storyPanels: [
+      {
+        bg: 0x0A0A18,
+        accent: 0xAACCFF,
+        title: 'Above the Break',
+        lines: [
+          'Above the shattered ground, islands drifted.',
+          'The Veil could not reach this high —',
+          'not yet.',
+          'You rose to meet it before it learned',
+          'how to climb.',
+        ],
+      },
+    ],
+  },
 ];

@@ -87,9 +87,8 @@ export class HexGrid {
   }
 
   applyGravity(onComplete) {
-    const scene = this.scene;
-    let animCount = 0;
-    const done = () => { if (--animCount === 0) onComplete?.(); };
+    let pending = 0;
+    const done = () => { if (--pending === 0) onComplete?.(); };
 
     for (let c = 0; c < COLS; c++) {
       let emptyRow = ROWS - 1;
@@ -102,43 +101,55 @@ export class HexGrid {
             node.col = c;
             node.row = emptyRow;
             const { y } = this.cellToPixel(c, emptyRow);
-            animCount++;
-            node.dropTo(y, Math.abs(emptyRow - r) * 20);
-            scene.time.delayedCall(ANIM.DROP_DURATION + Math.abs(emptyRow - r) * 20, done);
+            pending++;
+            // Kill any existing tween on this node before starting a new one
+            this.scene.tweens.killTweensOf(node);
+            this.scene.tweens.add({
+              targets: node,
+              y,
+              duration: ANIM.DROP_DURATION,
+              ease: ANIM.DROP_EASE,
+              onComplete: done,
+            });
           }
           emptyRow--;
         }
       }
     }
-    if (animCount === 0) onComplete?.();
+    if (pending === 0) onComplete?.();
   }
 
   fillEmpty(nodeTypes, onComplete) {
     const scene = this.scene;
-    let count = 0;
+    let pending = 0;
+    const done = () => { if (--pending === 0) onComplete?.(); };
 
     for (let c = 0; c < COLS; c++) {
-      let spawnCount = 0;
+      let spawnIndex = 0;
       for (let r = 0; r < ROWS; r++) {
         if (!this.cells[c][r]) {
           const type = nodeTypes[Math.floor(Math.random() * nodeTypes.length)];
-          const { x } = this.cellToPixel(c, r);
-          const { y: targetY } = this.cellToPixel(c, r);
-          const startY = GRID_OFFSET_Y - HEX_H * (spawnCount + 1) * 1.5;
+          const { x, y: targetY } = this.cellToPixel(c, r);
+          // Spawn above the grid, staggered by column slot so they cascade in
+          const startY = GRID_OFFSET_Y - HEX_H * (spawnIndex + 1) * 1.6;
 
           const node = new HexNode(scene, c, r, type, x, startY);
           this.cells[c][r] = node;
-          spawnCount++;
-          count++;
+          pending++;
 
-          const delay = spawnCount * 40;
-          node.scene.time.delayedCall(delay, () => node.dropTo(targetY));
+          scene.tweens.add({
+            targets: node,
+            y: targetY,
+            duration: ANIM.DROP_DURATION,
+            delay: spawnIndex * 45,
+            ease: ANIM.DROP_EASE,
+            onComplete: done,
+          });
+          spawnIndex++;
         }
       }
     }
-
-    const totalDelay = ANIM.DROP_DURATION + (ROWS * 40) + 100;
-    scene.time.delayedCall(totalDelay, () => onComplete?.());
+    if (pending === 0) onComplete?.();
   }
 
   spreadVeil(cells) {

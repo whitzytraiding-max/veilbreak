@@ -276,12 +276,12 @@ export class GameScene extends Phaser.Scene {
 
   _lockInput() {
     this._inputLocked = true;
-    if (this.chainDrawer) this.scene.input?.setEnabled(false);
+    this.input?.setEnabled(false);
   }
 
   _unlockInput() {
     this._inputLocked = false;
-    this.scene.input?.setEnabled(true);
+    this.input?.setEnabled(true);
   }
 
   // ── Cleanup ─────────────────────────────────────────────────────────────────

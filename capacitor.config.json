@@ -1,0 +1,14 @@
+{
+  "appId": "com.whitzy.veilbreak",
+  "appName": "VeilBreak",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "ios": {
+    "contentInset": "always"
+  },
+  "plugins": {
+    "Haptics": {}
+  }
+}

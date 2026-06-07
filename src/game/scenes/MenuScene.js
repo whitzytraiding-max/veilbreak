@@ -1,0 +1,173 @@
+import Phaser from 'phaser';
+import { GAME_W, GAME_H, COLORS, NODE_CONFIG } from '../constants.js';
+import { LivesManager } from '../managers/LivesManager.js';
+
+export class MenuScene extends Phaser.Scene {
+  constructor() { super('Menu'); }
+
+  create() {
+    this._drawBg();
+    this._spawnStars();
+    this._spawnFloatingOrbs();
+    this._drawLogo();
+    this._drawUI();
+  }
+
+  _drawBg() {
+    const bg = this.add.rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, COLORS.BG, 1);
+
+    // Radial gradient sim — concentric semi-transparent circles
+    for (let i = 6; i >= 1; i--) {
+      this.add.circle(GAME_W / 2, GAME_H * 0.4, i * 60, 0x1A1A4A, 0.04 * i);
+    }
+  }
+
+  _spawnStars() {
+    for (let i = 0; i < 80; i++) {
+      const x = Math.random() * GAME_W;
+      const y = Math.random() * GAME_H;
+      const r = Math.random() * 1.5 + 0.3;
+      const alpha = Math.random() * 0.7 + 0.15;
+      const dot = this.add.circle(x, y, r, 0xFFFFFF, alpha);
+      this.tweens.add({
+        targets: dot,
+        alpha: alpha * 0.2,
+        duration: 1500 + Math.random() * 2500,
+        yoyo: true,
+        repeat: -1,
+        delay: Math.random() * 2000,
+        ease: 'Sine.easeInOut',
+      });
+    }
+  }
+
+  _spawnFloatingOrbs() {
+    const types = Object.keys(NODE_CONFIG);
+    for (let i = 0; i < 8; i++) {
+      const cfg = NODE_CONFIG[types[i % types.length]];
+      const x = 30 + Math.random() * (GAME_W - 60);
+      const y = 80 + Math.random() * (GAME_H - 160);
+      const r = 6 + Math.random() * 10;
+
+      const orb = this.add.circle(x, y, r, cfg.glow, 0.18);
+      this.add.circle(x, y, r * 0.5, cfg.mid, 0.35);
+
+      this.tweens.add({
+        targets: orb,
+        y: y + (Math.random() > 0.5 ? 30 : -30),
+        x: x + (Math.random() > 0.5 ? 15 : -15),
+        duration: 3000 + Math.random() * 3000,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+        delay: Math.random() * 2000,
+      });
+    }
+  }
+
+  _drawLogo() {
+    // Glow behind logo
+    this.add.circle(GAME_W / 2, GAME_H * 0.3, 90, 0x4433AA, 0.2);
+    this.add.circle(GAME_W / 2, GAME_H * 0.3, 55, 0x7755DD, 0.15);
+
+    this.add.text(GAME_W / 2, GAME_H * 0.28, 'VEIL', {
+      fontFamily: 'Georgia, serif',
+      fontSize: '68px',
+      color: '#FFFFFF',
+      stroke: '#9955FF',
+      strokeThickness: 3,
+      alpha: 0.95,
+    }).setOrigin(0.5, 1);
+
+    this.add.text(GAME_W / 2, GAME_H * 0.28 + 4, 'BREAK', {
+      fontFamily: 'Georgia, serif',
+      fontSize: '68px',
+      color: '#BB88FF',
+      stroke: '#440088',
+      strokeThickness: 2,
+    }).setOrigin(0.5, 0);
+
+    this.add.text(GAME_W / 2, GAME_H * 0.42, 'Mend what was broken.', {
+      fontFamily: 'Georgia, serif',
+      fontSize: '17px',
+      color: '#8899CC',
+      fontStyle: 'italic',
+    }).setOrigin(0.5);
+
+    // Divider line
+    const line = this.add.graphics();
+    line.lineStyle(1, 0x556699, 0.5);
+    line.lineBetween(GAME_W * 0.25, GAME_H * 0.46, GAME_W * 0.75, GAME_H * 0.46);
+  }
+
+  _drawUI() {
+    // Play button
+    const btnY = GAME_H * 0.6;
+    const btn = this.add.graphics();
+    btn.fillStyle(0x7733CC, 1);
+    this._roundRect(btn, GAME_W / 2 - 110, btnY - 28, 220, 56, 28);
+    btn.lineStyle(2, 0xBB77FF, 0.8);
+    this._roundRectStroke(btn, GAME_W / 2 - 110, btnY - 28, 220, 56, 28);
+
+    const btnText = this.add.text(GAME_W / 2, btnY, 'PLAY', {
+      fontFamily: 'Georgia, serif',
+      fontSize: '28px',
+      color: '#FFFFFF',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    // Hit zone
+    const zone = this.add.zone(GAME_W / 2, btnY, 220, 56).setInteractive();
+    zone.on('pointerdown', () => {
+      this.tweens.add({ targets: [btn, btnText], scaleX: 0.95, scaleY: 0.95, duration: 80, yoyo: true });
+      this.time.delayedCall(150, () => this.scene.start('WorldMap'));
+    });
+    zone.on('pointerover', () => btnText.setColor('#DDAAFF'));
+    zone.on('pointerout', () => btnText.setColor('#FFFFFF'));
+
+    // Lives display
+    const lives = LivesManager.getLives();
+    this._drawHearts(GAME_W / 2, GAME_H * 0.72, lives);
+
+    // Version
+    this.add.text(GAME_W / 2, GAME_H - 18, 'v0.1', {
+      fontFamily: 'monospace',
+      fontSize: '12px',
+      color: '#334466',
+    }).setOrigin(0.5);
+  }
+
+  _drawHearts(cx, cy, count) {
+    const max = 5;
+    const spacing = 36;
+    const startX = cx - ((max - 1) * spacing) / 2;
+    for (let i = 0; i < max; i++) {
+      const x = startX + i * spacing;
+      const filled = i < count;
+      const heart = this.add.text(x, cy, '♥', {
+        fontFamily: 'Arial',
+        fontSize: '24px',
+        color: filled ? '#FF4466' : '#332244',
+      }).setOrigin(0.5);
+      if (filled) {
+        this.tweens.add({
+          targets: heart,
+          scaleX: 1.1,
+          scaleY: 1.1,
+          duration: 800 + i * 150,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+      }
+    }
+  }
+
+  _roundRect(g, x, y, w, h, r) {
+    g.fillRoundedRect(x, y, w, h, r);
+  }
+
+  _roundRectStroke(g, x, y, w, h, r) {
+    g.strokeRoundedRect(x, y, w, h, r);
+  }
+}

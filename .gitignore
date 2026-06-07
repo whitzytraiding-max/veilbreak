@@ -3,4 +3,6 @@ dist/
 .DS_Store
 *.local
 screenshot_*.png
+gh_*.png
+google_*.png
 .playwright-mcp/

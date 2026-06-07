@@ -1,47 +1,126 @@
-// Stub AdManager — replace internals with AdMob Capacitor plugin when ready.
-// All game logic already routes through these methods so integration is one file.
+import { Capacitor } from '@capacitor/core';
 
-let _adReadyCallback = null;
+// Replace test IDs with real AdMob IDs before App Store submission
+const IS_NATIVE = Capacitor.isNativePlatform();
+
+const AD_IDS = {
+  ios: {
+    interstitial: 'ca-app-pub-3940256099942544/4411468910', // Google test ID
+    rewarded:     'ca-app-pub-3940256099942544/1712485313', // Google test ID
+  },
+  android: {
+    interstitial: 'ca-app-pub-3940256099942544/1033173712', // Google test ID
+    rewarded:     'ca-app-pub-3940256099942544/5224354917', // Google test ID
+  },
+};
+
+const platform = Capacitor.getPlatform();
+const ids = AD_IDS[platform] || AD_IDS.ios;
+
+let _admob = null;
 let _levelsSinceInterstitial = 0;
+let _interstitialReady = false;
+let _rewardedReady = false;
+
+async function _getAdMob() {
+  if (_admob) return _admob;
+  const mod = await import('@capacitor-community/admob');
+  _admob = mod.AdMob;
+  return _admob;
+}
 
 export const AdManager = {
-  init() {
-    // TODO: Capacitor AdMob init
-    // AdMob.initialize({ requestTrackingAuthorization: true });
-    console.log('[AdManager] initialized (stub)');
+  async init() {
+    if (!IS_NATIVE) {
+      console.log('[AdManager] web/dev — ads simulated');
+      return;
+    }
+    try {
+      const AdMob = await _getAdMob();
+      await AdMob.initialize({ requestTrackingAuthorization: true });
+      await Promise.all([_preloadInterstitial(), _preloadRewarded()]);
+      console.log('[AdManager] initialized');
+    } catch (e) {
+      console.warn('[AdManager] init failed:', e);
+    }
   },
 
-  // Called after each level completion
+  // Returns true when caller should show interstitial (every 10 levels)
   onLevelComplete() {
     _levelsSinceInterstitial += 1;
     if (_levelsSinceInterstitial >= 10) {
       _levelsSinceInterstitial = 0;
-      return true; // caller should show interstitial
+      return true;
     }
     return false;
   },
 
-  // Show mandatory interstitial (every 10 levels, story panel reveal gate)
-  showInterstitial(onComplete) {
-    console.log('[AdManager] showInterstitial');
-    // TODO: AdMob.showInterstitial()
-    // Simulate 1s ad delay in dev
-    setTimeout(() => onComplete?.(), 1000);
+  async showInterstitial(onComplete) {
+    if (!IS_NATIVE) {
+      console.log('[AdManager] simulated interstitial');
+      setTimeout(() => onComplete?.(), 800);
+      return;
+    }
+    try {
+      const AdMob = await _getAdMob();
+      if (!_interstitialReady) await _preloadInterstitial();
+      await AdMob.showInterstitial();
+      _interstitialReady = false;
+      _preloadInterstitial();
+    } catch (e) {
+      console.warn('[AdManager] interstitial failed:', e);
+    } finally {
+      onComplete?.();
+    }
   },
 
-  // Show rewarded ad and call onRewarded if user watches to completion
-  showRewarded(type, onRewarded, onSkipped) {
-    console.log(`[AdManager] showRewarded type=${type}`);
-    // TODO: real ad — for now simulate
-    const watched = true; // always reward in dev
-    setTimeout(() => {
-      if (watched) onRewarded?.();
+  async showRewarded(type, onRewarded, onSkipped) {
+    if (!IS_NATIVE) {
+      console.log(`[AdManager] simulated rewarded type=${type}`);
+      setTimeout(() => onRewarded?.(), 800);
+      return;
+    }
+    try {
+      const AdMob = await _getAdMob();
+      if (!_rewardedReady) await _preloadRewarded();
+
+      let rewarded = false;
+      const listener = await AdMob.addListener('onRewardedVideoAdReward', () => {
+        rewarded = true;
+      });
+
+      await AdMob.showRewardVideoAd();
+      listener.remove();
+      _rewardedReady = false;
+      _preloadRewarded();
+
+      if (rewarded) onRewarded?.();
       else onSkipped?.();
-    }, 800);
+    } catch (e) {
+      console.warn('[AdManager] rewarded failed:', e);
+      onSkipped?.();
+    }
   },
 };
 
-// Reward types used by the game:
-//   'EXTRA_MOVES'  → +3 moves on fail screen
-//   'EXTRA_LIFE'   → +1 life on no-lives screen
-//   'BOOSTER'      → a random booster on game over
+async function _preloadInterstitial() {
+  try {
+    const AdMob = await _getAdMob();
+    await AdMob.prepareInterstitial({ adId: ids.interstitial });
+    _interstitialReady = true;
+  } catch (e) {
+    console.warn('[AdManager] preload interstitial failed:', e);
+  }
+}
+
+async function _preloadRewarded() {
+  try {
+    const AdMob = await _getAdMob();
+    await AdMob.prepareRewardVideoAd({ adId: ids.rewarded });
+    _rewardedReady = true;
+  } catch (e) {
+    console.warn('[AdManager] preload rewarded failed:', e);
+  }
+}
+
+// Reward types: 'EXTRA_MOVES' | 'EXTRA_LIFE' | 'BOOSTER'

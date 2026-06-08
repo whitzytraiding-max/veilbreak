@@ -6,7 +6,8 @@
     "androidScheme": "https"
   },
   "ios": {
-    "contentInset": "always"
+    "contentInset": "always",
+    "minVersion": "15.0"
   },
   "plugins": {
     "Haptics": {},

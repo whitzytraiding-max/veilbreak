@@ -193,6 +193,20 @@ class AudioManagerClass {
     this._bgOscs = [];
   }
 
+  // Must be called synchronously inside a real user gesture (touchstart/click)
+  // so iOS WKWebView allows AudioContext to resume. App.jsx calls this on first touch.
+  unlock() {
+    if (!this._ctx) {
+      try {
+        this._ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this._master = this._ctx.createGain();
+        this._master.gain.value = 0.5;
+        this._master.connect(this._ctx.destination);
+      } catch {}
+    }
+    if (this._ctx?.state === 'suspended') this._ctx.resume();
+  }
+
   toggleSound() { this._enabled = !this._enabled; return this._enabled; }
   toggleMusic() {
     this._musicEnabled = !this._musicEnabled;

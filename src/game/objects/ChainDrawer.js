@@ -27,6 +27,8 @@ export class ChainDrawer {
     s.input.on('pointerdown', this._onDown, this);
     s.input.on('pointermove', this._onMove, this);
     s.input.on('pointerup', this._onUp, this);
+    // iOS fires touchcancel (notification, incoming call) → treat as release
+    s.input.on('pointercancel', this._onUp, this);
   }
 
   _onDown(ptr) {
@@ -186,6 +188,7 @@ export class ChainDrawer {
     this.scene.input.off('pointerdown', this._onDown, this);
     this.scene.input.off('pointermove', this._onMove, this);
     this.scene.input.off('pointerup', this._onUp, this);
+    this.scene.input.off('pointercancel', this._onUp, this);
     this._lineGfx.destroy();
     this._glowGfx.destroy();
     this._ringGfx.destroy();

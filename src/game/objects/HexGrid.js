@@ -61,7 +61,7 @@ export class HexGrid {
   getCellAtPoint(px, py) {
     // Find closest cell center within touch radius
     let best = null;
-    let bestDist = HEX_RADIUS * 1.1;
+    let bestDist = HEX_RADIUS * 1.5;
     for (let c = 0; c < COLS; c++) {
       for (let r = 0; r < ROWS; r++) {
         const { x, y } = this.cellToPixel(c, r);

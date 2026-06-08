@@ -88,7 +88,7 @@ export class GameScene extends Phaser.Scene {
 
     AudioManager.playChainClear(chain[0].type, chainLen);
     this._tickGoal('CHAIN', chainLen);
-    this.effects.chainGlow(chain);
+    try { this.effects.chainGlow(chain); } catch (_) {}
 
     // Count cleared anchors
     chain.forEach(n => { if (n.isAnchor) this.anchorsCleared++; });
@@ -285,11 +285,17 @@ export class GameScene extends Phaser.Scene {
   _lockInput() {
     this._inputLocked = true;
     this.input?.setEnabled(false);
+    // Safety: auto-unlock after 4s in case any tween onComplete silently fails
+    if (this._unlockTimer) this._unlockTimer.remove();
+    this._unlockTimer = this.time.delayedCall(4000, () => {
+      if (this._inputLocked) this._unlockInput();
+    });
   }
 
   _unlockInput() {
     this._inputLocked = false;
     this.input?.setEnabled(true);
+    if (this._unlockTimer) { this._unlockTimer.remove(); this._unlockTimer = null; }
   }
 
   // ── Cleanup ─────────────────────────────────────────────────────────────────

@@ -284,8 +284,10 @@ export class GameScene extends Phaser.Scene {
 
   _lockInput() {
     this._inputLocked = true;
-    this.input?.setEnabled(false);
-    // Safety: auto-unlock after 4s in case any tween onComplete silently fails
+    // Lock at ChainDrawer level — do NOT call input.setEnabled(false) on iOS
+    // because disabling the InputPlugin drops Phaser's active touch tracking
+    // and the subsequent pointerup is silently lost, freezing the game.
+    this.chainDrawer?.lock();
     if (this._unlockTimer) this._unlockTimer.remove();
     this._unlockTimer = this.time.delayedCall(4000, () => {
       if (this._inputLocked) this._unlockInput();
@@ -294,7 +296,7 @@ export class GameScene extends Phaser.Scene {
 
   _unlockInput() {
     this._inputLocked = false;
-    this.input?.setEnabled(true);
+    this.chainDrawer?.unlock();
     if (this._unlockTimer) { this._unlockTimer.remove(); this._unlockTimer = null; }
   }
 

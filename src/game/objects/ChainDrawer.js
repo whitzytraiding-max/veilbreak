@@ -20,6 +20,9 @@ export class ChainDrawer {
 
   on(event, fn, ctx) { this._events.on(event, fn, ctx); }
 
+  lock()   { this._locked = true;  }
+  unlock() { this._locked = false; }
+
   // ── Input ──────────────────────────────────────────────────────────────────
 
   _bindInput() {
@@ -32,6 +35,7 @@ export class ChainDrawer {
   }
 
   _onDown(ptr) {
+    if (this._locked) return;
     const node = this.hexGrid.getCellAtPoint(ptr.x, ptr.y);
     if (!node || this.hexGrid.isVeil(node.col, node.row)) return;
 

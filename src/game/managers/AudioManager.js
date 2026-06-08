@@ -17,7 +17,6 @@ class AudioManagerClass {
     this._bgNode = null;
   }
 
-  // Call on first user gesture to unlock AudioContext
   _boot() {
     if (this._ctx) return;
     try {
@@ -29,7 +28,23 @@ class AudioManagerClass {
   }
 
   _resume() {
-    if (this._ctx?.state === 'suspended') this._ctx.resume();
+    if (!this._ctx) return;
+    if (this._ctx.state === 'suspended') {
+      this._ctx.resume().catch(() => {});
+    }
+  }
+
+  _playSilentBuffer() {
+    // iOS WKWebView requires a real buffer to be played in the gesture
+    // call stack to truly unlock Web Audio — resume() alone is not enough
+    if (!this._ctx) return;
+    try {
+      const buf = this._ctx.createBuffer(1, 1, this._ctx.sampleRate);
+      const src = this._ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(this._ctx.destination);
+      src.start(0);
+    } catch {}
   }
 
   _tone(freq, type = 'sine', vol = 0.28, duration = 0.18, startOffset = 0) {
@@ -193,18 +208,21 @@ class AudioManagerClass {
     this._bgOscs = [];
   }
 
-  // Must be called synchronously inside a real user gesture (touchstart/click)
-  // so iOS WKWebView allows AudioContext to resume. App.jsx calls this on first touch.
+  // Called synchronously in the first touchstart in App.jsx.
+  // Creates context, resumes it, AND plays a silent buffer — all three steps
+  // are required for iOS WKWebView to fully unlock Web Audio.
   unlock() {
-    if (!this._ctx) {
-      try {
-        this._ctx = new (window.AudioContext || window.webkitAudioContext)();
-        this._master = this._ctx.createGain();
-        this._master.gain.value = 0.5;
-        this._master.connect(this._ctx.destination);
-      } catch {}
+    this._boot();
+    this._resume();
+    this._playSilentBuffer();
+
+    // Re-resume whenever the app returns from background
+    if (!this._visibilityBound) {
+      this._visibilityBound = true;
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') this._resume();
+      });
     }
-    if (this._ctx?.state === 'suspended') this._ctx.resume();
   }
 
   toggleSound() { this._enabled = !this._enabled; return this._enabled; }

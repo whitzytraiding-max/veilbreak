@@ -42,6 +42,7 @@ export class ChainDrawer {
     this.isDrawing = true;
     this.chain = [node];
     this.pendingConvergence = false;
+    this._chainVeilCleared = 0;
     node.highlight(true);
     AudioManager.playNodeAdd(node.type);
     this._redrawLine();
@@ -92,7 +93,7 @@ export class ChainDrawer {
 
       // Also clear adjacent veil when extending chain
       this.hexGrid.getNeighbors(node.col, node.row).forEach(([c, r]) => {
-        this.hexGrid.clearVeilAt(c, r);
+        if (this.hexGrid.clearVeilAt(c, r)) this._chainVeilCleared++;
       });
     }
   }
@@ -113,16 +114,18 @@ export class ChainDrawer {
   // ── Chain resolution ───────────────────────────────────────────────────────
 
   _completeChain(isConvergence) {
+    const veilCleared = this._chainVeilCleared || 0;
     const chainCopy = [...this.chain];
     chainCopy.forEach(n => n.highlight(false));
     this._clearGraphics();
     this.chain = [];
     this.pendingConvergence = false;
+    this._chainVeilCleared = 0;
 
     if (isConvergence) {
-      this._events.emit('convergence', chainCopy);
+      this._events.emit('convergence', chainCopy, veilCleared);
     } else {
-      this._events.emit('chainComplete', chainCopy);
+      this._events.emit('chainComplete', chainCopy, veilCleared);
     }
   }
 

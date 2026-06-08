@@ -79,7 +79,7 @@ export class GameScene extends Phaser.Scene {
 
   // ── Chain handlers ──────────────────────────────────────────────────────────
 
-  _onChainComplete(chain) {
+  _onChainComplete(chain, veilCleared) {
     if (this._inputLocked) return;
     this._lockInput();
 
@@ -88,6 +88,7 @@ export class GameScene extends Phaser.Scene {
 
     AudioManager.playChainClear(chain[0].type, chainLen);
     this._tickGoal('CHAIN', chainLen);
+    this._tickGoal('CONTAIN', veilCleared || 0);
     try { this.effects.chainGlow(chain); } catch (_) {}
 
     // Count cleared anchors
@@ -106,7 +107,7 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  _onConvergence(chain) {
+  _onConvergence(chain, veilCleared) {
     if (this._inputLocked) return;
     this._lockInput();
 
@@ -128,6 +129,7 @@ export class GameScene extends Phaser.Scene {
     this.anchorsCleared += anchorCount;
 
     this.effects.convergenceBurst(chain[0]);
+    this._tickGoal('CONTAIN', veilCleared || 0);
 
     this.hexGrid.clearNodes(allOfType, () => {
       this.nodesCleared += allOfType.length;

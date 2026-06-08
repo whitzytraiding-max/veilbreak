@@ -163,49 +163,92 @@ class AudioManagerClass {
     this._tone(880, 'sine', 0.12, 0.08);
   }
 
-  // Ambient drone background (chapter-specific mood)
+  // Melodic arpeggio background — look-ahead Web Audio scheduling pattern
   startAmbient(chapterId = 1) {
     this._boot();
     this._resume();
     if (!this._ctx || !this._musicEnabled) return;
     this.stopAmbient();
 
-    const baseFreqs = {
-      1: [55, 82.4, 110],   // Chapter 1 — ocean, low and open
-      2: [41.2, 55, 73.4],  // Chapter 2 — deep fire, darker
-      3: [65.4, 87.3, 130], // Chapter 3 — forest, mid warm
+    // Pentatonic arpeggios: up and back down for a gentle, looping feel
+    const sequences = {
+      1: [261.63, 329.63, 392.00, 523.25, 392.00, 329.63], // C4 E4 G4 C5 G4 E4
+      2: [220.00, 261.63, 329.63, 440.00, 329.63, 261.63], // A3 C4 E4 A4 E4 C4
+      3: [392.00, 440.00, 523.25, 659.25, 523.25, 440.00], // G4 A4 C5 E5 C5 A4
     };
-    const freqs = baseFreqs[chapterId] || baseFreqs[1];
+    const notes = sequences[chapterId] || sequences[1];
 
     this._bgGain = this._ctx.createGain();
     this._bgGain.gain.value = 0;
     this._bgGain.connect(this._master);
+    this._bgGain.gain.linearRampToValueAtTime(1.0, this._ctx.currentTime + 2);
 
-    this._bgOscs = freqs.map((f, i) => {
-      const osc = this._ctx.createOscillator();
-      osc.type = i === 0 ? 'sine' : 'triangle';
-      osc.frequency.value = f;
-      // Slow detune drift for a living, breathing quality
-      osc.detune.value = (i - 1) * 8;
-      osc.connect(this._bgGain);
-      osc.start();
-      return osc;
-    });
+    const NOTE_DUR  = 0.45; // how long each note rings
+    const NOTE_STEP = 0.52; // time between note starts
+    const LOOP_GAP  = 1.6;  // silence before the sequence repeats
 
-    // Fade in gently
-    this._bgGain.gain.linearRampToValueAtTime(0.08, this._ctx.currentTime + 3);
+    let noteIndex = 0;
+    let nextNoteTime = this._ctx.currentTime + 0.3;
+
+    const tick = () => {
+      if (!this._bgGain) return;
+      const ctx = this._ctx;
+      if (!ctx) return;
+
+      // Schedule all notes that fall within the next 0.4 s look-ahead window
+      while (nextNoteTime < ctx.currentTime + 0.4) {
+        if (noteIndex < notes.length) {
+          const freq = notes[noteIndex];
+          const osc  = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0, nextNoteTime);
+          gain.gain.linearRampToValueAtTime(0.20, nextNoteTime + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, nextNoteTime + NOTE_DUR);
+          osc.connect(gain);
+          gain.connect(this._bgGain);
+          osc.start(nextNoteTime);
+          osc.stop(nextNoteTime + NOTE_DUR + 0.05);
+
+          // Bass root on the first note of each sequence
+          if (noteIndex === 0) {
+            const bass     = ctx.createOscillator();
+            const bassGain = ctx.createGain();
+            bass.type = 'sine';
+            bass.frequency.value = freq / 2;
+            bassGain.gain.setValueAtTime(0, nextNoteTime);
+            bassGain.gain.linearRampToValueAtTime(0.10, nextNoteTime + 0.04);
+            bassGain.gain.exponentialRampToValueAtTime(0.001, nextNoteTime + NOTE_DUR * 1.6);
+            bass.connect(bassGain);
+            bassGain.connect(this._bgGain);
+            bass.start(nextNoteTime);
+            bass.stop(nextNoteTime + NOTE_DUR * 1.6 + 0.05);
+          }
+
+          nextNoteTime += NOTE_STEP;
+          noteIndex++;
+        } else {
+          // End of sequence — pause then loop
+          nextNoteTime += LOOP_GAP;
+          noteIndex = 0;
+        }
+      }
+
+      this._bgTimer = setTimeout(tick, 100);
+    };
+
+    tick();
   }
 
   stopAmbient() {
+    clearTimeout(this._bgTimer);
+    this._bgTimer = null;
     if (!this._bgGain || !this._ctx) return;
     this._bgGain.gain.linearRampToValueAtTime(0, this._ctx.currentTime + 1.5);
     const g = this._bgGain;
-    const oscs = this._bgOscs || [];
-    setTimeout(() => {
-      try { oscs.forEach(o => o.stop()); g.disconnect(); } catch {}
-    }, 2000);
+    setTimeout(() => { try { g.disconnect(); } catch {} }, 2000);
     this._bgGain = null;
-    this._bgOscs = [];
   }
 
   // Called synchronously in the first touchstart in App.jsx.

@@ -18,13 +18,13 @@ export class HexNode extends Phaser.GameObjects.Container {
 
   _buildGraphics() {
     const cfg = NODE_CONFIG[this.type];
-    const r = HEX_RADIUS - 7;
+    const r = HEX_RADIUS - 11; // 16px disc — leaves 8.5px gap vertically between neighbours
 
-    // Outer glow layers (tight so adjacent nodes stay distinct)
+    // Glow layers stay within cell boundaries
     for (let i = 2; i >= 1; i--) {
       const glow = this.scene.add.graphics();
-      glow.fillStyle(cfg.glow, 0.08 * i);
-      glow.fillCircle(0, 0, r + i * 5);
+      glow.fillStyle(cfg.glow, 0.10 * i);
+      glow.fillCircle(0, 0, r + i * 3);
       this.add(glow);
     }
 
@@ -40,7 +40,7 @@ export class HexNode extends Phaser.GameObjects.Container {
 
   _drawDisc(alpha = 1) {
     const cfg = NODE_CONFIG[this.type];
-    const r = HEX_RADIUS - 8;
+    const r = HEX_RADIUS - 11; // match _buildGraphics
     this._disc.clear();
 
     // Base circle
@@ -64,11 +64,11 @@ export class HexNode extends Phaser.GameObjects.Container {
     this.isAnchor = value;
     this._anchorRing.clear();
     if (value) {
-      const r = HEX_RADIUS - 5;
-      this._anchorRing.lineStyle(2.5, 0xFFFFFF, 0.7);
-      this._anchorRing.strokeCircle(0, 0, r + 4);
+      const r = HEX_RADIUS - 11;
+      this._anchorRing.lineStyle(2, 0xFFFFFF, 0.7);
+      this._anchorRing.strokeCircle(0, 0, r + 3);
       this._anchorRing.lineStyle(1.5, NODE_CONFIG[this.type].glow, 0.9);
-      this._anchorRing.strokeCircle(0, 0, r + 8);
+      this._anchorRing.strokeCircle(0, 0, r + 6);
     }
   }
 

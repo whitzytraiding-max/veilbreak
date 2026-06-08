@@ -120,11 +120,8 @@ export class HexNode extends Phaser.GameObjects.Container {
       alpha: 0,
       duration: ANIM.EXPLOSION_DURATION * 0.7,
       ease: 'Quad.easeOut',
-      onComplete: () => {
-        onComplete?.();
-        this.destroy();
-      },
     });
+    onComplete?.(); // fire immediately — clearNodes timer handles timing
   }
 
   dropTo(targetY, delay = 0) {

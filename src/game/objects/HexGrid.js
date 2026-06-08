@@ -76,13 +76,20 @@ export class HexGrid {
   }
 
   clearNodes(nodes, onAllDone) {
-    let remaining = nodes.length;
-    const done = () => { if (--remaining === 0) onAllDone?.(); };
+    if (nodes.length === 0) { onAllDone?.(); return; }
+
     nodes.forEach((node, i) => {
-      const col = node.col;
-      const row = node.row;
-      this.cells[col][row] = null;
-      this.scene.time.delayedCall(i * 40, () => node.explode(done));
+      this.cells[node.col][node.row] = null;
+      this.scene.time.delayedCall(i * 40, () => {
+        try { node.explode(() => {}); } catch (_) { try { node.destroy(); } catch {} }
+      });
+    });
+
+    // Timer fires after last explosion is guaranteed done — no tween callback dependency
+    const maxWait = (nodes.length - 1) * 40 + Math.ceil(ANIM.EXPLOSION_DURATION * 0.7) + 60;
+    this.scene.time.delayedCall(maxWait, () => {
+      nodes.forEach(n => { try { if (!n.scene) return; n.destroy(); } catch {} });
+      onAllDone?.();
     });
   }
 

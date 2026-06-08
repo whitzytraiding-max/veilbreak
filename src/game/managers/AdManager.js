@@ -1,15 +1,14 @@
 import { Capacitor } from '@capacitor/core';
 
-// Replace test IDs with real AdMob IDs before App Store submission
 const IS_NATIVE = Capacitor.isNativePlatform();
 
 const AD_IDS = {
   ios: {
-    interstitial: 'ca-app-pub-3940256099942544/4411468910', // Google test ID
-    rewarded:     'ca-app-pub-3940256099942544/1712485313', // Google test ID
+    interstitial: 'ca-app-pub-5758394034635206/9440525293',
+    rewarded:     'ca-app-pub-5758394034635206/2872237195',
   },
   android: {
-    interstitial: 'ca-app-pub-3940256099942544/1033173712', // Google test ID
+    interstitial: 'ca-app-pub-3940256099942544/1033173712', // Google test ID — replace when Android app added to AdMob
     rewarded:     'ca-app-pub-3940256099942544/5224354917', // Google test ID
   },
 };

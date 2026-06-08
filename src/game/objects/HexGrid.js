@@ -87,8 +87,7 @@ export class HexGrid {
   }
 
   applyGravity(onComplete) {
-    let pending = 0;
-    const done = () => { if (--pending === 0) onComplete?.(); };
+    let anyMoved = false;
 
     for (let c = 0; c < COLS; c++) {
       let emptyRow = ROWS - 1;
@@ -101,28 +100,28 @@ export class HexGrid {
             node.col = c;
             node.row = emptyRow;
             const { y } = this.cellToPixel(c, emptyRow);
-            pending++;
-            // Kill any existing tween on this node before starting a new one
             this.scene.tweens.killTweensOf(node);
             this.scene.tweens.add({
               targets: node,
               y,
               duration: ANIM.DROP_DURATION,
               ease: ANIM.DROP_EASE,
-              onComplete: done,
             });
+            anyMoved = true;
           }
           emptyRow--;
         }
       }
     }
-    if (pending === 0) onComplete?.();
+
+    // Single timer — avoids per-tween onComplete races
+    const wait = anyMoved ? ANIM.DROP_DURATION + 50 : 0;
+    this.scene.time.delayedCall(wait, () => onComplete?.());
   }
 
   fillEmpty(nodeTypes, onComplete) {
     const scene = this.scene;
-    let pending = 0;
-    const done = () => { if (--pending === 0) onComplete?.(); };
+    let maxWait = 0;
 
     for (let c = 0; c < COLS; c++) {
       let spawnIndex = 0;
@@ -130,26 +129,29 @@ export class HexGrid {
         if (!this.cells[c][r]) {
           const type = nodeTypes[Math.floor(Math.random() * nodeTypes.length)];
           const { x, y: targetY } = this.cellToPixel(c, r);
-          // Spawn above the grid, staggered by column slot so they cascade in
           const startY = GRID_OFFSET_Y - HEX_H * (spawnIndex + 1) * 1.6;
+          const delay = spawnIndex * 45;
 
           const node = new HexNode(scene, c, r, type, x, startY);
           this.cells[c][r] = node;
-          pending++;
 
           scene.tweens.add({
             targets: node,
             y: targetY,
             duration: ANIM.DROP_DURATION,
-            delay: spawnIndex * 45,
+            delay,
             ease: ANIM.DROP_EASE,
-            onComplete: done,
           });
+
+          maxWait = Math.max(maxWait, delay + ANIM.DROP_DURATION);
           spawnIndex++;
         }
       }
     }
-    if (pending === 0) onComplete?.();
+
+    // Single timer fires after the last tween is guaranteed done.
+    // Avoids per-tween onComplete races that can silently deadlock.
+    scene.time.delayedCall(maxWait + 50, () => onComplete?.());
   }
 
   spreadVeil(cells) {

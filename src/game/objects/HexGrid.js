@@ -106,10 +106,11 @@ export class HexGrid {
             const node = this.cells[c][emptyRow];
             node.col = c;
             node.row = emptyRow;
-            const { y } = this.cellToPixel(c, emptyRow);
+            const { x, y } = this.cellToPixel(c, emptyRow);
             this.scene.tweens.killTweensOf(node);
             this.scene.tweens.add({
               targets: node,
+              x,
               y,
               duration: ANIM.DROP_DURATION,
               ease: ANIM.DROP_EASE,

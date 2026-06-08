@@ -58,6 +58,68 @@ export class HexNode extends Phaser.GameObjects.Container {
     // Small center glow
     this._disc.fillStyle(cfg.light, 0.35 * alpha);
     this._disc.fillCircle(0, 0, r * 0.3);
+
+    // Inner elemental symbol
+    this._drawSymbol(alpha);
+  }
+
+  _drawSymbol(alpha = 1) {
+    const cfg = NODE_CONFIG[this.type];
+    const r = HEX_RADIUS - 11;
+    const s = r * 0.33;
+    const g = this._disc;
+
+    switch (this.type) {
+      case 'FIRE':
+        g.fillStyle(cfg.light, 0.7 * alpha);
+        g.fillTriangle(0, -s * 1.05, -s * 0.72, s * 0.65, s * 0.72, s * 0.65);
+        g.fillStyle(0xFFEEAA, 0.5 * alpha);
+        g.fillTriangle(0, -s * 0.35, -s * 0.3, s * 0.45, s * 0.3, s * 0.45);
+        break;
+      case 'WATER':
+        g.fillStyle(cfg.light, 0.7 * alpha);
+        g.fillCircle(0, s * 0.2, s * 0.62);
+        g.fillTriangle(-s * 0.35, s * 0.2, s * 0.35, s * 0.2, 0, -s * 0.88);
+        break;
+      case 'EARTH':
+        g.fillStyle(cfg.light, 0.65 * alpha);
+        g.fillPoints([
+          { x: 0, y: -s }, { x: s * 0.75, y: 0 },
+          { x: 0, y: s }, { x: -s * 0.75, y: 0 },
+        ], true);
+        break;
+      case 'AIR':
+        g.lineStyle(1.5, cfg.light, 0.7 * alpha);
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
+          g.lineBetween(
+            Math.cos(a) * s * 0.25, Math.sin(a) * s * 0.25,
+            Math.cos(a) * s * 0.88, Math.sin(a) * s * 0.88,
+          );
+        }
+        g.fillStyle(cfg.light, 0.6 * alpha);
+        g.fillCircle(0, 0, s * 0.22);
+        break;
+      case 'SHADOW':
+        g.fillStyle(cfg.light, 0.7 * alpha);
+        g.fillCircle(-s * 0.1, 0, s * 0.75);
+        g.fillStyle(cfg.base, alpha);
+        g.fillCircle(s * 0.35, -s * 0.15, s * 0.65);
+        break;
+      case 'LIGHT':
+        g.lineStyle(1.5, cfg.light, 0.8 * alpha);
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2;
+          const innerR = i % 2 === 0 ? s * 0.28 : s * 0.18;
+          g.lineBetween(
+            Math.cos(a) * innerR, Math.sin(a) * innerR,
+            Math.cos(a) * s * 0.92, Math.sin(a) * s * 0.92,
+          );
+        }
+        g.fillStyle(cfg.light, 0.75 * alpha);
+        g.fillCircle(0, 0, s * 0.28);
+        break;
+    }
   }
 
   setAnchor(value) {

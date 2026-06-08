@@ -23,6 +23,12 @@ export class ChainDrawer {
   lock()   { this._locked = true;  }
   unlock() { this._locked = false; }
 
+  update(time) {
+    if (!this.isDrawing || this.chain.length < 2) return;
+    this._flowT = time;
+    this._redrawLine();
+  }
+
   // ── Input ──────────────────────────────────────────────────────────────────
 
   _bindInput() {
@@ -164,6 +170,29 @@ export class ChainDrawer {
       this._lineGfx.fillStyle(0xFFFFFF, 0.8);
       this._lineGfx.fillCircle(n.x, n.y, 5);
     });
+
+    // Animated energy dots flowing along the chain
+    if (this.chain.length >= 2) {
+      const flowT = this._flowT || 0;
+      const totalSeg = this.chain.length - 1;
+      const numDots = Math.min(4, totalSeg + 1);
+      for (let d = 0; d < numDots; d++) {
+        const t = ((flowT * 0.0022 + d / numDots) % 1);
+        const segF = t * totalSeg;
+        const segIdx = Math.floor(segF);
+        const localT = segF - segIdx;
+        if (segIdx >= 0 && segIdx < totalSeg) {
+          const a = this.chain[segIdx];
+          const b = this.chain[segIdx + 1];
+          const fx = a.x + (b.x - a.x) * localT;
+          const fy = a.y + (b.y - a.y) * localT;
+          this._lineGfx.fillStyle(0xFFFFFF, 0.9);
+          this._lineGfx.fillCircle(fx, fy, 3.5);
+          this._lineGfx.fillStyle(cfg.light || 0xFFFFFF, 0.5);
+          this._lineGfx.fillCircle(fx, fy, 6);
+        }
+      }
+    }
   }
 
   _drawConvergenceRing(node) {

@@ -13,16 +13,25 @@ export class Effects {
     g.fillCircle(8, 8, 8);
     g.generateTexture('particle_dot', 16, 16);
     g.destroy();
+
+    // Soft diamond spark
+    const sg = this.scene.make.graphics({ x: 0, y: 0, add: false });
+    sg.fillStyle(0xFFFFFF, 1);
+    sg.fillPoints([{ x: 8, y: 0 }, { x: 16, y: 8 }, { x: 8, y: 16 }, { x: 0, y: 8 }], true);
+    sg.generateTexture('particle_spark', 16, 16);
+    sg.destroy();
   }
 
   burstAtNode(node, count = 18) {
     const cfg = NODE_CONFIG[node.type];
+
+    // Main particle burst
     const emitter = this.scene.add.particles(node.x, node.y, 'particle_dot', {
-      speed: { min: 60, max: 180 },
+      speed: { min: 70, max: 210 },
       angle: { min: 0, max: 360 },
-      scale: { start: 0.55, end: 0 },
+      scale: { start: 0.65, end: 0 },
       alpha: { start: 1, end: 0 },
-      lifespan: { min: 280, max: 500 },
+      lifespan: { min: 300, max: 560 },
       tint: [cfg.glow, cfg.mid, 0xFFFFFF],
       quantity: count,
       frequency: -1,
@@ -30,7 +39,37 @@ export class Effects {
       blendMode: 'ADD',
     });
     emitter.explode(count);
-    this.scene.time.delayedCall(700, () => emitter.destroy());
+
+    // Spark burst
+    const sparks = this.scene.add.particles(node.x, node.y, 'particle_spark', {
+      speed: { min: 40, max: 130 },
+      angle: { min: 0, max: 360 },
+      scale: { start: 0.45, end: 0 },
+      alpha: { start: 0.9, end: 0 },
+      lifespan: { min: 200, max: 400 },
+      tint: cfg.light,
+      quantity: Math.ceil(count * 0.4),
+      frequency: -1,
+      depth: DEPTHS.PARTICLES,
+      blendMode: 'ADD',
+    });
+    sparks.explode(Math.ceil(count * 0.4));
+
+    // Ring wave
+    const ring = this.scene.add.graphics().setDepth(DEPTHS.PARTICLES);
+    ring.lineStyle(2.5, cfg.glow, 0.85);
+    ring.strokeCircle(node.x, node.y, 6);
+    this.scene.tweens.add({
+      targets: ring,
+      scaleX: 5.5,
+      scaleY: 5.5,
+      alpha: 0,
+      duration: 380,
+      ease: 'Quad.easeOut',
+      onComplete: () => ring.destroy(),
+    });
+
+    this.scene.time.delayedCall(800, () => { emitter.destroy(); sparks.destroy(); });
   }
 
   convergenceBurst(node) {

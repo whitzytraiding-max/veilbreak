@@ -25,14 +25,53 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
-    // Dark background with subtle star field
-    this.add.rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, 0x080818, 1);
-    for (let i = 0; i < 60; i++) {
-      this.add.circle(
-        Math.random() * GAME_W, Math.random() * GAME_H,
-        Math.random() * 1.2 + 0.3, 0xFFFFFF, Math.random() * 0.35 + 0.05
-      );
+    // Deep space base
+    this.add.rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, 0x05040F, 1);
+
+    // Nebula blobs — soft colored clouds in background
+    const nebulaDefs = [
+      { x: 70,  y: 180, r: 110, color: 0x1A0A3A, a: 0.55 },
+      { x: 330, y: 370, r: 90,  color: 0x0A1828, a: 0.45 },
+      { x: 180, y: 620, r: 120, color: 0x180A2A, a: 0.4  },
+      { x: 320, y: 680, r: 70,  color: 0x0A1A1A, a: 0.35 },
+    ];
+    nebulaDefs.forEach(n => {
+      for (let layer = 3; layer >= 1; layer--) {
+        const blob = this.add.circle(n.x, n.y, n.r * layer * 0.42, n.color, n.a / layer);
+        this.tweens.add({
+          targets: blob,
+          x: n.x + (Math.random() - 0.5) * 20,
+          y: n.y + (Math.random() - 0.5) * 15,
+          duration: 8000 + Math.random() * 5000,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+          delay: Math.random() * 4000,
+        });
+      }
+    });
+
+    // Twinkling stars
+    for (let i = 0; i < 90; i++) {
+      const sx = Math.random() * GAME_W;
+      const sy = Math.random() * GAME_H;
+      const sr = Math.random() * 1.3 + 0.2;
+      const sa = Math.random() * 0.5 + 0.1;
+      const star = this.add.circle(sx, sy, sr, 0xFFFFFF, sa);
+      this.tweens.add({
+        targets: star,
+        alpha: sa * 0.1,
+        duration: 1200 + Math.random() * 2800,
+        yoyo: true,
+        repeat: -1,
+        delay: Math.random() * 3000,
+        ease: 'Sine.easeInOut',
+      });
     }
+
+    // Vignette — darken edges so grid pops
+    const corners = [[0, 0], [GAME_W, 0], [0, GAME_H], [GAME_W, GAME_H]];
+    corners.forEach(([cx, cy]) => this.add.circle(cx, cy, 220, 0x020108, 0.65));
 
     this.hexGrid = new HexGrid(this);
     this.hexGrid.populate(this.levelData.nodeTypes, this.levelData.anchors || []);
@@ -300,6 +339,13 @@ export class GameScene extends Phaser.Scene {
     this._inputLocked = false;
     this.chainDrawer?.unlock();
     if (this._unlockTimer) { this._unlockTimer.remove(); this._unlockTimer = null; }
+  }
+
+  // ── Per-frame update ────────────────────────────────────────────────────────
+
+  update(time) {
+    this.hexGrid?.updateVeil(time);
+    this.chainDrawer?.update(time);
   }
 
   // ── Cleanup ─────────────────────────────────────────────────────────────────

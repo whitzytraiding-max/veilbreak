@@ -14,28 +14,56 @@ export class MenuScene extends Phaser.Scene {
   }
 
   _drawBg() {
-    const bg = this.add.rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, COLORS.BG, 1);
+    // Deep space base
+    this.add.rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, 0x05040F, 1);
 
-    // Radial gradient sim — concentric semi-transparent circles
+    // Nebula layers — soft colored depth clouds
+    const nebulaDefs = [
+      { x: 60,  y: 150, r: 130, color: 0x1A0A3A, a: 0.5  },
+      { x: 340, y: 320, r: 100, color: 0x0A0A2A, a: 0.4  },
+      { x: 200, y: 560, r: 150, color: 0x15082A, a: 0.45 },
+      { x: 350, y: 700, r: 80,  color: 0x0A1820, a: 0.35 },
+    ];
+    nebulaDefs.forEach(n => {
+      for (let layer = 3; layer >= 1; layer--) {
+        const blob = this.add.circle(n.x, n.y, n.r * layer * 0.4, n.color, n.a / layer);
+        this.tweens.add({
+          targets: blob,
+          x: n.x + (Math.random() - 0.5) * 18,
+          y: n.y + (Math.random() - 0.5) * 12,
+          duration: 9000 + Math.random() * 6000,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+          delay: Math.random() * 4000,
+        });
+      }
+    });
+
+    // Radial centre glow behind logo area
     for (let i = 6; i >= 1; i--) {
-      this.add.circle(GAME_W / 2, GAME_H * 0.4, i * 60, 0x1A1A4A, 0.04 * i);
+      this.add.circle(GAME_W / 2, GAME_H * 0.38, i * 55, 0x1A1A4A, 0.035 * i);
     }
+
+    // Vignette — darken corners
+    const corners = [[0, 0], [GAME_W, 0], [0, GAME_H], [GAME_W, GAME_H]];
+    corners.forEach(([cx, cy]) => this.add.circle(cx, cy, 230, 0x020108, 0.7));
   }
 
   _spawnStars() {
-    for (let i = 0; i < 80; i++) {
+    for (let i = 0; i < 100; i++) {
       const x = Math.random() * GAME_W;
       const y = Math.random() * GAME_H;
-      const r = Math.random() * 1.5 + 0.3;
-      const alpha = Math.random() * 0.7 + 0.15;
+      const r = Math.random() * 1.5 + 0.2;
+      const alpha = Math.random() * 0.6 + 0.12;
       const dot = this.add.circle(x, y, r, 0xFFFFFF, alpha);
       this.tweens.add({
         targets: dot,
-        alpha: alpha * 0.2,
-        duration: 1500 + Math.random() * 2500,
+        alpha: alpha * 0.1,
+        duration: 1200 + Math.random() * 2800,
         yoyo: true,
         repeat: -1,
-        delay: Math.random() * 2000,
+        delay: Math.random() * 2500,
         ease: 'Sine.easeInOut',
       });
     }

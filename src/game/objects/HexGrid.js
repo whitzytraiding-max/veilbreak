@@ -13,6 +13,8 @@ export class HexGrid {
 
     this._bgGraphics = scene.add.graphics().setDepth(DEPTHS.HEX_GRID);
     this._veilGraphics = scene.add.graphics().setDepth(DEPTHS.VEIL);
+    this._veilPulseT = 0;
+    this._veilLastRedraw = 0;
     this._drawBackground();
 
     // Init empty grid
@@ -193,6 +195,15 @@ export class HexGrid {
     return n;
   }
 
+  updateVeil(time) {
+    this._veilPulseT = time;
+    if (time - this._veilLastRedraw < 50) return;
+    this._veilLastRedraw = time;
+    if (Object.keys(this.veilCells).length > 0) {
+      this._redrawVeil();
+    }
+  }
+
   destroy() {
     this._bgGraphics.destroy();
     this._veilGraphics.destroy();
@@ -225,8 +236,15 @@ export class HexGrid {
       for (let r = 0; r < ROWS; r++) {
         const { x, y } = this.cellToPixel(c, r);
         const pts = this._hexPoints(x, y, HEX_RADIUS - 1);
+
         g.fillStyle(COLORS.HEX_FILL, 1);
         g.fillPoints(pts, true);
+
+        // Recessed inner face — gives each cell a 3D depth look
+        const innerPts = this._hexPoints(x, y, HEX_RADIUS * 0.55);
+        g.fillStyle(0x0A0A1C, 1);
+        g.fillPoints(innerPts, true);
+
         g.lineStyle(1.5, COLORS.HEX_BORDER, 0.9);
         g.strokePoints(pts, true);
       }
@@ -234,6 +252,8 @@ export class HexGrid {
   }
 
   _redrawVeil() {
+    const t = this._veilPulseT;
+    const pulse = Math.sin(t * 0.0025) * 0.5 + 0.5; // 0→1→0 slow cycle
     const g = this._veilGraphics;
     g.clear();
     Object.keys(this.veilCells).forEach(key => {
@@ -241,14 +261,20 @@ export class HexGrid {
       const { x, y } = this.cellToPixel(c, r);
       const pts = this._hexPoints(x, y, HEX_RADIUS - 1);
 
-      g.fillStyle(COLORS.VEIL_FILL, 0.88);
+      // Dark corrupted fill
+      g.fillStyle(COLORS.VEIL_FILL, 0.92);
       g.fillPoints(pts, true);
-      g.lineStyle(2, COLORS.VEIL_BORDER, 0.9);
+
+      // Pulsing border glow
+      g.lineStyle(2 + pulse * 1.5, COLORS.VEIL_BORDER, 0.65 + pulse * 0.35);
       g.strokePoints(pts, true);
 
-      // Pulsing inner dot
-      g.fillStyle(0x550077, 0.5);
-      g.fillCircle(x, y, 7);
+      // Inner corruption mark — pulses size and brightness
+      const dotR = 5 + pulse * 5;
+      g.fillStyle(0x6600AA, 0.28 + pulse * 0.3);
+      g.fillCircle(x, y, dotR);
+      g.fillStyle(0xCC00FF, 0.12 + pulse * 0.18);
+      g.fillCircle(x, y, dotR * 0.45);
     });
   }
 }

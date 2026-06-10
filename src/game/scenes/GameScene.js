@@ -137,14 +137,38 @@ export class GameScene extends Phaser.Scene {
 
   _floatText(x, y, text, color = '#FFFFFF') {
     const t = this.add.text(x, y, text, {
-      fontFamily: 'Georgia, serif', fontSize: '26px',
+      fontFamily: 'Georgia, serif', fontSize: '28px',
       color, fontStyle: 'bold',
       stroke: '#000000', strokeThickness: 3,
-    }).setOrigin(0.5).setDepth(DEPTHS.UI);
+    }).setOrigin(0.5).setDepth(DEPTHS.UI).setScale(0);
+
+    // Punch in, then drift up and fade
     this.tweens.add({
-      targets: t, y: y - 70, alpha: 0,
-      duration: 1100, ease: 'Quad.easeOut',
-      onComplete: () => t.destroy(),
+      targets: t, scaleX: 1.35, scaleY: 1.35,
+      duration: 150, ease: 'Back.easeOut',
+      onComplete: () => this.tweens.add({
+        targets: t, y: y - 80, alpha: 0, scaleX: 0.85, scaleY: 0.85,
+        duration: 950, ease: 'Quad.easeOut',
+        onComplete: () => t.destroy(),
+      }),
+    });
+  }
+
+  _showLabel(text, color) {
+    const t = this.add.text(GAME_W / 2, GAME_H * 0.37, text, {
+      fontFamily: 'Georgia, serif', fontSize: '34px',
+      color, fontStyle: 'bold',
+      stroke: '#000000', strokeThickness: 5,
+    }).setOrigin(0.5).setDepth(DEPTHS.UI + 1).setScale(0);
+
+    this.tweens.add({
+      targets: t, scaleX: 1.12, scaleY: 1.12,
+      duration: 220, ease: 'Back.easeOut',
+      onComplete: () => this.tweens.add({
+        targets: t, y: GAME_H * 0.30, alpha: 0,
+        duration: 750, delay: 350, ease: 'Quad.easeIn',
+        onComplete: () => t.destroy(),
+      }),
     });
   }
 
@@ -164,6 +188,17 @@ export class GameScene extends Phaser.Scene {
 
     const midNode = chain[Math.floor(chain.length / 2)];
     this._addScore(this._chainScore(chainLen) + (veilCleared || 0) * 75, midNode.x, midNode.y - 30);
+
+    // Combo label
+    if      (chainLen >= 9) this._showLabel('LEGENDARY!', '#FF44FF');
+    else if (chainLen >= 7) this._showLabel('AMAZING!',   '#FF8844');
+    else if (chainLen >= 5) this._showLabel('GREAT!',     '#FFCC44');
+    else if (chainLen >= 4) this._showLabel('NICE!',      '#AADDFF');
+
+    // Element-coloured screen flash + camera shake on big chains
+    this.effects.screenFlash(NODE_CONFIG[chain[0].type].glow, chainLen >= 5 ? 0.18 : 0.09);
+    if (chainLen >= 7) this.cameras.main.shake(220, 0.007);
+    else if (chainLen >= 5) this.cameras.main.shake(140, 0.004);
 
     // Count cleared anchors
     chain.forEach(n => { if (n.isAnchor) this.anchorsCleared++; });
@@ -204,6 +239,10 @@ export class GameScene extends Phaser.Scene {
 
     this.effects.convergenceBurst(chain[0]);
     this._tickGoal('CONTAIN', veilCleared || 0);
+
+    const glowHex = '#' + NODE_CONFIG[type].glow.toString(16).padStart(6, '0');
+    this._showLabel('CONVERGENCE!', glowHex);
+    this.cameras.main.shake(380, 0.014);
 
     const convScore = this._chainScore(chain.length) * 3
       + (allOfType.length - chain.length) * 150
@@ -253,6 +292,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   _onVeilSpread() {
+    this.effects.screenFlash(0x220033, 0.22);
     if (this.veilManager.isBoardLost()) {
       this.time.delayedCall(500, () => this._fail('veil'));
     }

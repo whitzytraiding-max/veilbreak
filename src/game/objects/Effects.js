@@ -55,17 +55,25 @@ export class Effects {
     });
     sparks.explode(Math.ceil(count * 0.4));
 
+    // Bright center flash
+    const flash = this.scene.add.graphics().setDepth(DEPTHS.PARTICLES + 2);
+    flash.fillStyle(0xFFFFFF, 0.92);
+    flash.fillCircle(node.x, node.y, 14);
+    this.scene.tweens.add({
+      targets: flash,
+      alpha: 0, scaleX: 2.5, scaleY: 2.5,
+      duration: 200, ease: 'Quad.easeOut',
+      onComplete: () => flash.destroy(),
+    });
+
     // Ring wave
     const ring = this.scene.add.graphics().setDepth(DEPTHS.PARTICLES);
     ring.lineStyle(2.5, cfg.glow, 0.85);
     ring.strokeCircle(node.x, node.y, 6);
     this.scene.tweens.add({
       targets: ring,
-      scaleX: 5.5,
-      scaleY: 5.5,
-      alpha: 0,
-      duration: 380,
-      ease: 'Quad.easeOut',
+      scaleX: 5.5, scaleY: 5.5, alpha: 0,
+      duration: 380, ease: 'Quad.easeOut',
       onComplete: () => ring.destroy(),
     });
 
@@ -75,25 +83,41 @@ export class Effects {
   convergenceBurst(node) {
     const cfg = NODE_CONFIG[node.type];
 
-    // Big ring wave
+    // Inner ring
     const ring = this.scene.add.graphics().setDepth(DEPTHS.PARTICLES);
     ring.lineStyle(4, cfg.glow, 1);
     ring.strokeCircle(node.x, node.y, 10);
     this.scene.tweens.add({
-      targets: ring,
-      scaleX: 10,
-      scaleY: 10,
-      alpha: 0,
-      duration: 600,
-      ease: 'Quad.easeOut',
+      targets: ring, scaleX: 10, scaleY: 10, alpha: 0,
+      duration: 600, ease: 'Quad.easeOut',
       onComplete: () => ring.destroy(),
+    });
+
+    // Outer shockwave — thick, slow, dramatic
+    const shock = this.scene.add.graphics().setDepth(DEPTHS.PARTICLES);
+    shock.lineStyle(8, cfg.glow, 0.65);
+    shock.strokeCircle(node.x, node.y, 12);
+    this.scene.tweens.add({
+      targets: shock, scaleX: 18, scaleY: 18, alpha: 0,
+      duration: 950, ease: 'Quad.easeOut',
+      onComplete: () => shock.destroy(),
+    });
+
+    // White flash at epicentre
+    const flash = this.scene.add.graphics().setDepth(DEPTHS.PARTICLES + 2);
+    flash.fillStyle(0xFFFFFF, 1);
+    flash.fillCircle(node.x, node.y, 22);
+    this.scene.tweens.add({
+      targets: flash, alpha: 0, scaleX: 3, scaleY: 3,
+      duration: 280, ease: 'Quad.easeOut',
+      onComplete: () => flash.destroy(),
     });
 
     // Heavy particle burst
     this.burstAtNode(node, 60);
 
-    // Screen flash
-    this.screenFlash(cfg.glow, 0.25);
+    // Strong screen flash in element colour
+    this.screenFlash(cfg.glow, 0.42);
   }
 
   screenFlash(color = 0xFFFFFF, maxAlpha = 0.18) {

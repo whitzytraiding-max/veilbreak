@@ -11,6 +11,8 @@ export class WinScene extends Phaser.Scene {
     this.stars = data.stars;
     this.nodesCleared = data.nodesCleared;
     this.levelData = data.levelData;
+    this.score = data.score || 0;
+    this.bestScore = data.bestScore || 0;
   }
 
   create() {
@@ -65,12 +67,12 @@ export class WinScene extends Phaser.Scene {
 
   _showResultUI() {
     // Star row
-    const starY = GAME_H * 0.32;
+    const starY = GAME_H * 0.27;
     for (let i = 0; i < 3; i++) {
       const filled = i < this.stars;
       const x = GAME_W / 2 + (i - 1) * 68;
       const star = this.add.text(x, starY, '★', {
-        fontFamily: 'Arial', fontSize: filled ? '56px' : '44px',
+        fontFamily: 'Arial', fontSize: filled ? '52px' : '40px',
         color: filled ? '#FFCC00' : '#223355',
       }).setOrigin(0.5).setAlpha(0);
 
@@ -81,27 +83,45 @@ export class WinScene extends Phaser.Scene {
       });
     }
 
-    this.add.text(GAME_W / 2, GAME_H * 0.5, 'LEVEL COMPLETE', {
-      fontFamily: 'Georgia, serif', fontSize: '26px', color: '#FFFFFF', fontStyle: 'bold',
+    this.add.text(GAME_W / 2, GAME_H * 0.40, 'LEVEL COMPLETE', {
+      fontFamily: 'Georgia, serif', fontSize: '24px', color: '#FFFFFF', fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this.add.text(GAME_W / 2, GAME_H * 0.57, `${this.nodesCleared} nodes mended`, {
-      fontFamily: 'Georgia, serif', fontSize: '15px', color: '#8899CC',
+    // Score — hero element
+    const scoreNum = this.add.text(GAME_W / 2, GAME_H * 0.51, this.score.toLocaleString(), {
+      fontFamily: 'Georgia, serif', fontSize: '52px', color: '#FFCC44', fontStyle: 'bold',
+    }).setOrigin(0.5).setAlpha(0);
+    this.tweens.add({ targets: scoreNum, alpha: 1, scaleX: 1.15, scaleY: 1.15, duration: 400, ease: 'Back.easeOut', delay: 500,
+      onComplete: () => this.tweens.add({ targets: scoreNum, scaleX: 1, scaleY: 1, duration: 200 }) });
+
+    this.add.text(GAME_W / 2, GAME_H * 0.59, 'SCORE', {
+      fontFamily: 'Georgia, serif', fontSize: '12px', color: '#AA8833', letterSpacing: 5,
     }).setOrigin(0.5);
+
+    const isNewBest = this.score >= this.bestScore && this.bestScore > 0;
+    if (isNewBest) {
+      this.add.text(GAME_W / 2, GAME_H * 0.635, '✦ NEW BEST ✦', {
+        fontFamily: 'Georgia, serif', fontSize: '14px', color: '#33FF88',
+      }).setOrigin(0.5);
+    } else if (this.bestScore > 0) {
+      this.add.text(GAME_W / 2, GAME_H * 0.635, `Best: ${this.bestScore.toLocaleString()}`, {
+        fontFamily: 'Georgia, serif', fontSize: '13px', color: '#556688',
+      }).setOrigin(0.5);
+    }
 
     // Next level button
-    this._addButton(GAME_W / 2, GAME_H * 0.70, 'NEXT LEVEL', 0x7733CC, 0xDDAAFF, () => {
+    this._addButton(GAME_W / 2, GAME_H * 0.74, 'NEXT LEVEL', 0x7733CC, 0xDDAAFF, () => {
       const nextId = this.levelId + 1;
       this.scene.start('Game', { levelId: nextId });
     });
 
     // Replay
-    this._addButton(GAME_W / 2, GAME_H * 0.80, 'Replay', 0x223355, 0x8899CC, () => {
+    this._addButton(GAME_W / 2, GAME_H * 0.84, 'Replay', 0x223355, 0x8899CC, () => {
       this.scene.start('Game', { levelId: this.levelId });
     }, true);
 
     // Map
-    this._addButton(GAME_W / 2, GAME_H * 0.87, 'Map', 0x111122, 0x667799, () => {
+    this._addButton(GAME_W / 2, GAME_H * 0.91, 'Map', 0x111122, 0x667799, () => {
       this.scene.start('WorldMap');
     }, true);
   }

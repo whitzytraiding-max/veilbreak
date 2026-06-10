@@ -17,6 +17,7 @@ export class GameScene extends Phaser.Scene {
     this.levelId = data?.levelId || GameState.getCurrentLevel();
     this.levelData = getLevelData(this.levelId);
     this.movesLeft = this.levelData.moves;
+    this.score = 0;
     this.nodesCleared = 0;
     this.anchorsCleared = 0;
     this.longestChain = 0;
@@ -88,6 +89,7 @@ export class GameScene extends Phaser.Scene {
       levelData: this.levelData,
       movesLeft: this.movesLeft,
       goalProgress: this.goalProgress,
+      score: 0,
     });
     this.uiScene = this.scene.get('UIOverlay');
 
@@ -116,6 +118,36 @@ export class GameScene extends Phaser.Scene {
     return Object.values(this.goalProgress).every(g => g.done);
   }
 
+  // ── Scoring ─────────────────────────────────────────────────────────────────
+
+  _chainScore(n) {
+    // Tetris-style quadratic: 3→300, 4→600, 5→1000, 6→1500, 7→2100, 8→2800
+    return 50 * n * (n - 1);
+  }
+
+  _addScore(points, x, y) {
+    this.score += points;
+    this.uiScene?.updateScore(this.score);
+    const color = points >= 3000 ? '#FF88FF'
+      : points >= 1000 ? '#FF8844'
+      : points >= 500  ? '#FFCC44'
+      : '#FFFFFF';
+    this._floatText(x, y, `+${points.toLocaleString()}`, color);
+  }
+
+  _floatText(x, y, text, color = '#FFFFFF') {
+    const t = this.add.text(x, y, text, {
+      fontFamily: 'Georgia, serif', fontSize: '26px',
+      color, fontStyle: 'bold',
+      stroke: '#000000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(DEPTHS.UI);
+    this.tweens.add({
+      targets: t, y: y - 70, alpha: 0,
+      duration: 1100, ease: 'Quad.easeOut',
+      onComplete: () => t.destroy(),
+    });
+  }
+
   // ── Chain handlers ──────────────────────────────────────────────────────────
 
   _onChainComplete(chain, veilCleared) {
@@ -129,6 +161,9 @@ export class GameScene extends Phaser.Scene {
     this._tickGoal('CHAIN', chainLen);
     this._tickGoal('CONTAIN', veilCleared || 0);
     try { this.effects.chainGlow(chain); } catch (_) {}
+
+    const midNode = chain[Math.floor(chain.length / 2)];
+    this._addScore(this._chainScore(chainLen) + (veilCleared || 0) * 75, midNode.x, midNode.y - 30);
 
     // Count cleared anchors
     chain.forEach(n => { if (n.isAnchor) this.anchorsCleared++; });
@@ -169,6 +204,11 @@ export class GameScene extends Phaser.Scene {
 
     this.effects.convergenceBurst(chain[0]);
     this._tickGoal('CONTAIN', veilCleared || 0);
+
+    const convScore = this._chainScore(chain.length) * 3
+      + (allOfType.length - chain.length) * 150
+      + (veilCleared || 0) * 75;
+    this._addScore(convScore, chain[0].x, chain[0].y - 40);
 
     this.hexGrid.clearNodes(allOfType, () => {
       this.nodesCleared += allOfType.length;
@@ -222,12 +262,24 @@ export class GameScene extends Phaser.Scene {
 
   _win() {
     const stars = this._calcStars();
-    this.scene.stop('UIOverlay');
-    this.scene.start('Win', {
-      levelId: this.levelId,
-      stars,
-      nodesCleared: this.nodesCleared,
-      levelData: this.levelData,
+    const moveBonus = this.movesLeft * 100;
+    if (moveBonus > 0) {
+      this.score += moveBonus;
+      this.uiScene?.updateScore(this.score);
+      this._floatText(GAME_W / 2, GAME_H * 0.42, `+${moveBonus} moves bonus!`, '#33FF88');
+    }
+    GameState.saveLevelScore(this.levelId, this.score);
+    const bestScore = GameState.getBestScore(this.levelId);
+    this.time.delayedCall(moveBonus > 0 ? 900 : 300, () => {
+      this.scene.stop('UIOverlay');
+      this.scene.start('Win', {
+        levelId: this.levelId,
+        stars,
+        nodesCleared: this.nodesCleared,
+        levelData: this.levelData,
+        score: this.score,
+        bestScore,
+      });
     });
   }
 

@@ -9,6 +9,7 @@ export class UIOverlayScene extends Phaser.Scene {
     this.levelData = data.levelData;
     this.movesLeft = data.movesLeft;
     this.goalProgress = data.goalProgress;
+    this.score = data.score || 0;
   }
 
   create() {
@@ -84,17 +85,30 @@ export class UIOverlayScene extends Phaser.Scene {
     return { CLEAR: '✦', ANCHOR: '⬡', CONTAIN: '⊗', CHAIN: '↯' }[type] || '?';
   }
 
-  // ── Move counter ───────────────────────────────────────────────────────────
+  // ── Score + Move counter ───────────────────────────────────────────────────
 
   _drawMoveCounter() {
     const cy = GAME_H - 115;
     this.add.graphics().fillStyle(0x080818, 0.8).fillRect(0, cy - 30, GAME_W, 60);
 
-    this.add.text(GAME_W / 2, cy - 12, 'MOVES', {
-      fontFamily: 'Georgia, serif', fontSize: '12px', color: '#556688', letterSpacing: 3,
+    // Divider between score and moves
+    this.add.graphics().lineStyle(1, COLORS.HEX_BORDER, 0.35)
+      .lineBetween(GAME_W / 2, cy - 22, GAME_W / 2, cy + 22);
+
+    // Score (left half)
+    this.add.text(GAME_W * 0.25, cy - 13, 'SCORE', {
+      fontFamily: 'Georgia, serif', fontSize: '11px', color: '#556688', letterSpacing: 3,
     }).setOrigin(0.5);
-    this._movesText = this.add.text(GAME_W / 2, cy + 10, String(this.movesLeft), {
-      fontFamily: 'Georgia, serif', fontSize: '42px', color: '#FFFFFF', fontStyle: 'bold',
+    this._scoreText = this.add.text(GAME_W * 0.25, cy + 10, '0', {
+      fontFamily: 'Georgia, serif', fontSize: '36px', color: '#FFCC44', fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    // Moves (right half)
+    this.add.text(GAME_W * 0.75, cy - 13, 'MOVES', {
+      fontFamily: 'Georgia, serif', fontSize: '11px', color: '#556688', letterSpacing: 3,
+    }).setOrigin(0.5);
+    this._movesText = this.add.text(GAME_W * 0.75, cy + 10, String(this.movesLeft), {
+      fontFamily: 'Georgia, serif', fontSize: '36px', color: '#FFFFFF', fontStyle: 'bold',
     }).setOrigin(0.5);
   }
 
@@ -136,6 +150,16 @@ export class UIOverlayScene extends Phaser.Scene {
   }
 
   // ── Update API (called from GameScene) ────────────────────────────────────
+
+  updateScore(n) {
+    if (!this._scoreText) return;
+    this._scoreText.setText(n.toLocaleString());
+    this.tweens.add({
+      targets: this._scoreText,
+      scaleX: 1.25, scaleY: 1.25,
+      duration: 100, yoyo: true, ease: 'Back.easeOut',
+    });
+  }
 
   updateMoves(n) {
     if (!this._movesText) return;

@@ -63,6 +63,18 @@ export const GameState = {
     save(_state);
   },
 
+  saveLevelScore(levelId, score) {
+    const key = `score_${levelId}`;
+    if (score > (_state[key] || 0)) {
+      _state[key] = score;
+      save(_state);
+    }
+  },
+
+  getBestScore(levelId) {
+    return _state[`score_${levelId}`] || 0;
+  },
+
   reset() {
     _state = { ...defaults };
     save(_state);

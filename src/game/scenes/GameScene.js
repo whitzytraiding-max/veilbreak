@@ -189,16 +189,14 @@ export class GameScene extends Phaser.Scene {
     const midNode = chain[Math.floor(chain.length / 2)];
     this._addScore(this._chainScore(chainLen) + (veilCleared || 0) * 75, midNode.x, midNode.y - 30);
 
-    // Combo label
-    if      (chainLen >= 9) this._showLabel('LEGENDARY!', '#FF44FF');
-    else if (chainLen >= 7) this._showLabel('AMAZING!',   '#FF8844');
-    else if (chainLen >= 5) this._showLabel('GREAT!',     '#FFCC44');
-    else if (chainLen >= 4) this._showLabel('NICE!',      '#AADDFF');
-
-    // Element-coloured screen flash + camera shake on big chains
-    this.effects.screenFlash(NODE_CONFIG[chain[0].type].glow, chainLen >= 5 ? 0.18 : 0.09);
-    if (chainLen >= 7) this.cameras.main.shake(220, 0.007);
-    else if (chainLen >= 5) this.cameras.main.shake(140, 0.004);
+    // Juice — wrapped so any error can never block clearNodes
+    try {
+      if      (chainLen >= 9) this._showLabel('LEGENDARY!', '#FF44FF');
+      else if (chainLen >= 7) this._showLabel('AMAZING!',   '#FF8844');
+      else if (chainLen >= 5) this._showLabel('GREAT!',     '#FFCC44');
+      else if (chainLen >= 4) this._showLabel('NICE!',      '#AADDFF');
+      this.effects.screenFlash(NODE_CONFIG[chain[0].type].glow, chainLen >= 5 ? 0.18 : 0.09);
+    } catch (_) {}
 
     // Count cleared anchors
     chain.forEach(n => { if (n.isAnchor) this.anchorsCleared++; });
@@ -237,12 +235,14 @@ export class GameScene extends Phaser.Scene {
     const anchorCount = allOfType.filter(n => n.isAnchor).length;
     this.anchorsCleared += anchorCount;
 
-    this.effects.convergenceBurst(chain[0]);
+    try { this.effects.convergenceBurst(chain[0]); } catch (_) {}
     this._tickGoal('CONTAIN', veilCleared || 0);
 
-    const glowHex = '#' + NODE_CONFIG[type].glow.toString(16).padStart(6, '0');
-    this._showLabel('CONVERGENCE!', glowHex);
-    this.cameras.main.shake(380, 0.014);
+    try {
+      const glowHex = '#' + NODE_CONFIG[type].glow.toString(16).padStart(6, '0');
+      this._showLabel('CONVERGENCE!', glowHex);
+      this.cameras.main.shake(300, 0.01);
+    } catch (_) {}
 
     const convScore = this._chainScore(chain.length) * 3
       + (allOfType.length - chain.length) * 150
@@ -292,7 +292,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   _onVeilSpread() {
-    this.effects.screenFlash(0x220033, 0.22);
+    try { this.effects.screenFlash(0x220033, 0.22); } catch (_) {}
     if (this.veilManager.isBoardLost()) {
       this.time.delayedCall(500, () => this._fail('veil'));
     }

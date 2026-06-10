@@ -63,9 +63,9 @@ export class ChainDrawer {
     const first = this.chain[0];
     const last = this.chain[this.chain.length - 1];
 
-    // Loop closure → convergence
+    // Loop closure → convergence (requires 5+ nodes to form a meaningful loop)
     if (
-      this.chain.length >= 3 &&
+      this.chain.length >= 5 &&
       node === first &&
       !this.pendingConvergence
     ) {
@@ -108,7 +108,7 @@ export class ChainDrawer {
     if (!this.isDrawing) return;
     this.isDrawing = false;
 
-    if (this.pendingConvergence && this.chain.length >= 3) {
+    if (this.pendingConvergence && this.chain.length >= 5) {
       this._completeChain(true);
     } else if (this.chain.length >= 3) {
       this._completeChain(false);

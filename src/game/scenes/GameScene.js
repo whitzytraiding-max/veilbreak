@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_W, GAME_H, COLORS, NODE_CONFIG, COLS, ROWS } from '../constants.js';
+import { GAME_W, GAME_H, COLORS, NODE_CONFIG, COLS, ROWS, DEPTHS } from '../constants.js';
 import { HexGrid } from '../objects/HexGrid.js';
 import { ChainDrawer } from '../objects/ChainDrawer.js';
 import { VeilManager } from '../objects/VeilManager.js';

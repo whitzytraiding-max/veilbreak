@@ -163,59 +163,73 @@ export class ChainDrawer {
 
     const cfg = NODE_CONFIG[this.chain[0].type];
 
-    // Glow layer
-    this._glowGfx.lineStyle(ANIM.CHAIN_LINE_WIDTH + 8, cfg.glow, 0.25);
-    this._glowGfx.beginPath();
-    this._glowGfx.moveTo(this.chain[0].x, this.chain[0].y);
-    this.chain.slice(1).forEach(n => this._glowGfx.lineTo(n.x, n.y));
-    this._glowGfx.strokePath();
-
-    // Main line
-    this._lineGfx.lineStyle(ANIM.CHAIN_LINE_WIDTH, cfg.mid, 0.95);
-    this._lineGfx.beginPath();
-    this._lineGfx.moveTo(this.chain[0].x, this.chain[0].y);
-    this.chain.slice(1).forEach(n => this._lineGfx.lineTo(n.x, n.y));
-    this._lineGfx.strokePath();
-
-    // When convergence is pending, draw the closing edge back to the first node
-    // so the polygon looks fully sealed before the player lifts their finger
-    if (this.pendingConvergence && this.chain.length >= 2) {
-      const fst = this.chain[0];
-      const lst = this.chain[this.chain.length - 1];
-      this._glowGfx.lineStyle(ANIM.CHAIN_LINE_WIDTH + 8, cfg.glow, 0.35);
-      this._glowGfx.lineBetween(lst.x, lst.y, fst.x, fst.y);
-      this._lineGfx.lineStyle(ANIM.CHAIN_LINE_WIDTH, cfg.mid, 0.6);
-      this._lineGfx.lineBetween(lst.x, lst.y, fst.x, fst.y);
+    // Build the list of segments to electrify (chain legs + closing leg if sealing)
+    const segs = [];
+    for (let i = 0; i < this.chain.length - 1; i++) {
+      segs.push([this.chain[i], this.chain[i + 1]]);
+    }
+    if (this.pendingConvergence) {
+      segs.push([this.chain[this.chain.length - 1], this.chain[0]]);
     }
 
-    // Dots at each node
+    // Draw each leg as a flickering lightning bolt
+    segs.forEach((seg, idx) => this._drawBolt(seg[0], seg[1], cfg, idx));
+
+    // Bright nodes where the bolt connects
     this.chain.forEach(n => {
-      this._lineGfx.fillStyle(0xFFFFFF, 0.8);
-      this._lineGfx.fillCircle(n.x, n.y, 5);
+      this._lineGfx.fillStyle(cfg.light || 0xFFFFFF, 0.5);
+      this._lineGfx.fillCircle(n.x, n.y, 7);
+      this._lineGfx.fillStyle(0xFFFFFF, 0.95);
+      this._lineGfx.fillCircle(n.x, n.y, 3.5);
     });
+  }
 
-    // Animated energy dots flowing along the chain
-    if (this.chain.length >= 2) {
-      const flowT = this._flowT || 0;
-      const totalSeg = this.chain.length - 1;
-      const numDots = Math.min(4, totalSeg + 1);
-      for (let d = 0; d < numDots; d++) {
-        const t = ((flowT * 0.0022 + d / numDots) % 1);
-        const segF = t * totalSeg;
-        const segIdx = Math.floor(segF);
-        const localT = segF - segIdx;
-        if (segIdx >= 0 && segIdx < totalSeg) {
-          const a = this.chain[segIdx];
-          const b = this.chain[segIdx + 1];
-          const fx = a.x + (b.x - a.x) * localT;
-          const fy = a.y + (b.y - a.y) * localT;
-          this._lineGfx.fillStyle(0xFFFFFF, 0.9);
-          this._lineGfx.fillCircle(fx, fy, 3.5);
-          this._lineGfx.fillStyle(cfg.light || 0xFFFFFF, 0.5);
-          this._lineGfx.fillCircle(fx, fy, 6);
-        }
-      }
+  // A jagged electric arc between two points, regenerated each frame so it
+  // crackles. Midpoint-displacement gives the lightning its forked, organic path.
+  _drawBolt(a, b, cfg, seed) {
+    const pts = this._boltPath(a.x, a.y, b.x, b.y, seed);
+
+    // Outer glow
+    this._glowGfx.lineStyle(12, cfg.glow, 0.2);
+    this._strokePts(this._glowGfx, pts);
+    this._glowGfx.lineStyle(6, cfg.light || cfg.glow, 0.3);
+    this._strokePts(this._glowGfx, pts);
+    // Mid colored arc
+    this._lineGfx.lineStyle(4, cfg.glow, 0.8);
+    this._strokePts(this._lineGfx, pts);
+    // Hot white core
+    this._lineGfx.lineStyle(2, 0xFFFFFF, 1);
+    this._strokePts(this._lineGfx, pts);
+  }
+
+  // Jittered polyline between two points. Jitter is reseeded from _flowT so the
+  // bolt visibly flickers; perpendicular offset shrinks near the endpoints.
+  _boltPath(x1, y1, x2, y2, seed) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len, ny = dx / len;          // unit normal
+    const steps = Math.max(4, Math.round(len / 14));
+    const amp = Math.min(13, len * 0.16);
+    const t = (this._flowT || 0) * 0.02;
+    const pts = [];
+    for (let i = 0; i <= steps; i++) {
+      const f = i / steps;
+      // taper offset to 0 at both ends so it still touches the orbs
+      const taper = Math.sin(f * Math.PI);
+      // pseudo-random but smoothly time-varying displacement
+      const wobble = Math.sin(f * 9 + seed * 2.3 + t) * 0.6
+                   + Math.sin(f * 23 + seed + t * 1.7) * 0.4;
+      const off = wobble * amp * taper;
+      pts.push([x1 + dx * f + nx * off, y1 + dy * f + ny * off]);
     }
+    return pts;
+  }
+
+  _strokePts(gfx, pts) {
+    gfx.beginPath();
+    gfx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) gfx.lineTo(pts[i][0], pts[i][1]);
+    gfx.strokePath();
   }
 
   // Draw rings on both the first node and the closing node to show the polygon sealed

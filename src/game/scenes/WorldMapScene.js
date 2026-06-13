@@ -390,11 +390,11 @@ export class WorldMapScene extends Phaser.Scene {
       // Milestone gate ring — a decorative double ring + crown ticks
       if (isMilestone) {
         const ringColor = unlocked ? 0xFFCC55 : 0x4A4A6E;
-        const ring = this.add.circle(pos.x, pos.y, 18, 0x000000, 0)
-          .setStrokeStyle(2, ringColor, unlocked ? 0.85 : 0.5);
+        const ring = this.add.circle(pos.x, pos.y, 24, 0x000000, 0)
+          .setStrokeStyle(2.5, ringColor, unlocked ? 0.85 : 0.5);
         for (let a = 0; a < 8; a++) {
           const ang = (a / 8) * Math.PI * 2;
-          this.add.star(pos.x + Math.cos(ang) * 22, pos.y + Math.sin(ang) * 22, 4, 0.8, 2.4,
+          this.add.star(pos.x + Math.cos(ang) * 29, pos.y + Math.sin(ang) * 29, 4, 1, 3,
             ringColor, unlocked ? 0.9 : 0.5);
         }
         if (unlocked) {
@@ -406,7 +406,7 @@ export class WorldMapScene extends Phaser.Scene {
       }
 
       // Star core
-      const coreR = isCurrent ? 13 : isMilestone ? 13 : 11;
+      const coreR = isCurrent ? 17 : isMilestone ? 17 : 15;
       const coreColor = unlocked ? (isCurrent ? 0xFFFFFF : isMilestone ? 0xFFF4DC : 0xEAF0FF) : 0x2A3658;
       const strokeColor = unlocked ? (isCurrent ? 0xCCAAFF : isMilestone ? 0xFFCC55 : accent) : 0x35446E;
       const core = this.add.circle(pos.x, pos.y, coreR, coreColor, 1);
@@ -428,8 +428,8 @@ export class WorldMapScene extends Phaser.Scene {
       // Level number
       this.add.text(pos.x, pos.y, String(levelId), {
         fontFamily: 'Georgia, serif',
-        fontSize: unlocked ? '13px' : '11px',
-        color: unlocked ? (isCurrent || isMilestone ? '#3A2A12' : '#1A2240') : '#46557E',
+        fontSize: unlocked ? '16px' : '13px',
+        color: unlocked ? (isCurrent || isMilestone ? '#3A2A12' : '#16203C') : '#46557E',
         fontStyle: 'bold',
       }).setOrigin(0.5);
 
@@ -446,7 +446,7 @@ export class WorldMapScene extends Phaser.Scene {
       }
 
       if (unlocked) {
-        const zone = this.add.zone(pos.x, pos.y, 54, 54).setInteractive();
+        const zone = this.add.zone(pos.x, pos.y, 66, 66).setInteractive();
         zone.on('pointerup', () => {
           if (!this._didScroll) this._startLevel(levelId);
         });

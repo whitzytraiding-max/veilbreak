@@ -3,12 +3,20 @@ export const GAME_H = 800;
 
 export const COLS = 7;
 export const ROWS = 8;
-export const HEX_RADIUS = 27;
-export const HEX_W = Math.sqrt(3) * HEX_RADIUS;   // ~46.8
-export const HEX_H = 2 * HEX_RADIUS;               // 54
-export const HEX_V_SPACING = HEX_H * 0.75;         // 40.5
-export const GRID_OFFSET_X = (GAME_W - (COLS - 1) * HEX_W - HEX_W * 0.5) / 2 + HEX_W / 2;
-export const GRID_OFFSET_Y = 155;
+export const HEX_RADIUS = 29;
+export const HEX_W = Math.sqrt(3) * HEX_RADIUS;   // ~50.2
+export const HEX_H = 2 * HEX_RADIUS;               // 58
+export const HEX_V_SPACING = HEX_H * 0.75;         // 43.5
+
+// Centre the grid horizontally, accounting for the odd-row half-cell offset:
+// columns span [0 .. (COLS-1)*HEX_W] on even rows and up to +HEX_W/2 on odd rows.
+export const GRID_OFFSET_X = GAME_W / 2 - ((COLS - 1) * HEX_W + HEX_W / 2) / 2;
+
+// Centre the grid vertically in the play area between the goal bar (~126) and the
+// score/moves bar (GAME_H - 72), so it no longer floats high with dead space below.
+const PLAY_TOP = 126;
+const PLAY_BOTTOM = GAME_H - 72;
+export const GRID_OFFSET_Y = (PLAY_TOP + PLAY_BOTTOM) / 2 - ((ROWS - 1) / 2) * HEX_V_SPACING;
 
 export const NODE_TYPES = ['FIRE', 'WATER', 'EARTH', 'AIR', 'SHADOW', 'LIGHT'];
 

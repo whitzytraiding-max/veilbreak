@@ -1,11 +1,11 @@
 import Phaser from 'phaser';
 import { NODE_CONFIG, HEX_RADIUS, ANIM, DEPTHS } from '../constants.js';
 
-// Displayed orb size. The texture is a 192px sphere whose solid body is 80% of
-// the image (the rest is bloom halo), so display ≈ 44px → ~35px body, leaving a
-// soft glow that just kisses neighbouring cells.
-const ORB_DISPLAY = 44;
-const BODY_R = ORB_DISPLAY * 0.40; // on-screen radius of the solid sphere (~17.6)
+// Displayed orb size, scaled to the hex cell. The texture is a 192px sphere whose
+// solid body is 80% of the image (the rest is glow), so the body ≈ ORB_DISPLAY*0.8
+// and a little glow spills toward neighbours.
+const ORB_DISPLAY = HEX_RADIUS * 1.66;          // ~48 at radius 29
+const BODY_R = ORB_DISPLAY * 0.40;              // on-screen radius of the glass sphere
 
 export class HexNode extends Phaser.GameObjects.Container {
   constructor(scene, col, row, type, x, y) {
@@ -33,35 +33,31 @@ export class HexNode extends Phaser.GameObjects.Container {
       .setAlpha(0);
     this.add(this._glow);
 
-    // The plasma orb itself (high-res radial-gradient texture)
+    // The glossy liquid orb itself (high-res texture)
     this._orb = this.scene.add.image(0, 0, 'orb_' + this.type)
       .setDisplaySize(ORB_DISPLAY, ORB_DISPLAY);
     this.add(this._orb);
 
-    // Hot core that breathes in/out — additive over the orb centre
-    this._core = this.scene.add.image(0, 0, 'orbcore_' + this.type)
-      .setDisplaySize(ORB_DISPLAY * 0.72, ORB_DISPLAY * 0.72)
-      .setBlendMode(Phaser.BlendModes.ADD)
-      .setAlpha(0.55);
-    this.add(this._core);
-
-    // Elemental glyph drawn crisp on top
+    // Faint elemental glyph — a barely-there hint suspended in the liquid, not a
+    // bright icon (keeps the "you don't know what's inside" feel while still
+    // giving colour-blind players a tell).
     this._symbol = this.scene.add.graphics();
     this._drawSymbol();
+    this._symbol.setAlpha(0.4);
     this.add(this._symbol);
 
-    // Two glowing motes slowly orbiting the orb — the "magic" tell
-    this._motes = this.scene.add.container(0, 0);
-    const moteR = ORB_DISPLAY * 0.52;
-    for (let i = 0; i < 2; i++) {
-      const m = this.scene.add.image(i === 0 ? moteR : -moteR, 0, 'glow')
-        .setDisplaySize(7, 7)
+    // A couple of sparkles twinkling inside the liquid for life
+    this._sparkles = [];
+    const spots = [{ x: -0.16, y: 0.18 }, { x: 0.2, y: -0.12 }];
+    spots.forEach(s => {
+      const sp = this.scene.add.image(s.x * ORB_DISPLAY, s.y * ORB_DISPLAY, 'sparkle')
+        .setDisplaySize(8, 8)
         .setTint(cfg.light)
         .setBlendMode(Phaser.BlendModes.ADD)
-        .setAlpha(0.85);
-      this._motes.add(m);
-    }
-    this.add(this._motes);
+        .setAlpha(0.2);
+      this._sparkles.push(sp);
+      this.add(sp);
+    });
 
     // Anchor indicator (drawn only if anchor)
     this._anchorRing = this.scene.add.graphics();
@@ -73,20 +69,16 @@ export class HexNode extends Phaser.GameObjects.Container {
   // Continuous "alive" animation — independent of the chain/idle scale tweens so
   // it survives highlight()'s killTweensOf(this) (those target the container).
   _startMagic() {
-    this.scene.tweens.add({
-      targets: this._core,
-      alpha: 0.95,
-      scaleX: this._core.scaleX * 1.18,
-      scaleY: this._core.scaleY * 1.18,
-      duration: 1100 + Math.random() * 900,
-      delay: Math.random() * 1200,
-      yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
-    });
-    this.scene.tweens.add({
-      targets: this._motes,
-      rotation: Math.PI * 2,
-      duration: 6000 + Math.random() * 4000,
-      repeat: -1, ease: 'Linear',
+    this._sparkles.forEach((sp, i) => {
+      this.scene.tweens.add({
+        targets: sp,
+        alpha: 0.95,
+        scaleX: sp.scaleX * 1.5,
+        scaleY: sp.scaleY * 1.5,
+        duration: 900 + Math.random() * 800,
+        delay: i * 500 + Math.random() * 600,
+        yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+      });
     });
   }
 

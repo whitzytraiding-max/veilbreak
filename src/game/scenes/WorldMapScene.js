@@ -131,120 +131,211 @@ export class WorldMapScene extends Phaser.Scene {
     this.input.on('pointercancel', () => { this._dragging = false; this._vel = 0; });
   }
 
-  // ── Background (world space, covers full MAP_H) ─────────────────────────────
+  // ── Chapter helpers ─────────────────────────────────────────────────────────
+
+  // Vertical [yStart, yEnd] world band each chapter occupies along the path,
+  // plus its accent colour — used to tint nebula sectors and constellation lines.
+  _chapterBands() {
+    return CHAPTERS.map((ch, i) => {
+      const startIdx = (ch.startLevel || 1) - 1;
+      const next = CHAPTERS[i + 1];
+      const endIdx = next ? (next.startLevel || 1) - 1 : LEVEL_DOTS.length;
+      const yStart = (LEVEL_DOTS[startIdx] || LEVEL_DOTS[0]).y - 70;
+      const yEnd = (LEVEL_DOTS[Math.min(endIdx, LEVEL_DOTS.length - 1)]).y;
+      return { ch, startIdx, endIdx, yStart, yEnd };
+    });
+  }
+
+  _chapterAccentFor(levelId) {
+    const band = this._chapterBands().find(b => levelId - 1 >= b.startIdx && levelId - 1 < b.endIdx);
+    return band ? (band.ch.accentColor || 0x6677AA) : 0x6677AA;
+  }
+
+  // ── Deep-space background: parallax stars + per-chapter nebula sectors ───────
 
   _drawBg() {
     this.add.rectangle(GAME_W / 2, MAP_H / 2, GAME_W, MAP_H, COLORS.BG, 1);
 
-    // Topo lines across full height
-    const g = this.add.graphics();
-    for (let y = 60; y < MAP_H; y += 65) {
-      g.lineStyle(1, 0x1A2244, 0.28);
-      g.beginPath();
-      g.moveTo(0, y);
-      for (let x = 0; x <= GAME_W; x += 20) {
-        g.lineTo(x, y + Math.sin(x * 0.03 + y * 0.008) * 14);
-      }
-      g.strokePath();
-    }
+    // Coloured nebula clouds anchored to each chapter's band, so scrolling moves
+    // you through visibly distinct regions (blue coast → fiery vaults → …).
+    this._chapterBands().forEach((b, i) => {
+      const accent = b.ch.accentColor || 0x33446A;
+      const midY = (b.yStart + b.yEnd) / 2;
+      const clouds = [
+        { x: i % 2 === 0 ? 90 : 310, y: midY - 40, r: 230, a: 0.16 },
+        { x: i % 2 === 0 ? 300 : 100, y: midY + 70, r: 180, a: 0.11 },
+        { x: GAME_W / 2, y: midY, r: 300, a: 0.06 },
+      ];
+      clouds.forEach(c => {
+        const neb = this.add.image(c.x, c.y, 'glow')
+          .setDisplaySize(c.r, c.r)
+          .setTint(accent)
+          .setAlpha(c.a)
+          .setBlendMode(Phaser.BlendModes.ADD);
+        this.tweens.add({
+          targets: neb, alpha: c.a * 0.55,
+          duration: 5000 + Math.random() * 4000,
+          yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+          delay: Math.random() * 3000,
+        });
+      });
+    });
 
-    // Stars spread across full height
-    for (let i = 0; i < 280; i++) {
-      this.add.circle(
-        Math.random() * GAME_W,
-        Math.random() * MAP_H,
-        Math.random() * 1.2 + 0.3,
-        0xFFFFFF,
-        Math.random() * 0.45 + 0.08
-      );
+    // Parallax star layers — far stars drift slower for a sense of depth.
+    this._starLayer(140, 0.35, 0.9, 0.28);
+    this._starLayer(120, 0.6, 1.2, 0.4);
+    this._starLayer(160, 1.0, 1.5, 0.55);
+
+    // A handful of bright twinkling flares
+    for (let i = 0; i < 26; i++) {
+      const fl = this.add.image(Math.random() * GAME_W, Math.random() * MAP_H, 'sparkle')
+        .setDisplaySize(10, 10)
+        .setAlpha(Math.random() * 0.4 + 0.2)
+        .setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({
+        targets: fl, alpha: 0.05, scale: fl.scale * 0.6,
+        duration: 1400 + Math.random() * 2600,
+        yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: Math.random() * 2000,
+      });
     }
   }
 
-  // ── Chapter section labels (world space) ────────────────────────────────────
+  _starLayer(count, scrollFactor, maxR, maxA) {
+    for (let i = 0; i < count; i++) {
+      const star = this.add.circle(
+        Math.random() * GAME_W,
+        Math.random() * MAP_H,
+        Math.random() * maxR + 0.3,
+        0xFFFFFF,
+        Math.random() * maxA + 0.06,
+      ).setScrollFactor(scrollFactor);
+    }
+  }
+
+  // ── Chapter sector labels ────────────────────────────────────────────────────
 
   _drawChapterLabels() {
-    CHAPTERS.forEach(ch => {
-      const idx = (ch.startLevel || 1) - 1;
-      if (idx >= LEVEL_DOTS.length) return;
-      const pos = LEVEL_DOTS[idx];
+    // Labels sit above the constellation (nodes are depth 0) but below the fixed
+    // header (depth 500). A dark plate keeps them legible over stars and dots.
+    const D = 300;
+    this._chapterBands().forEach(b => {
+      const ch = b.ch;
+      const y = b.yStart - 6;
+      const colHex = '#' + (ch.accentColor || 0x8899CC).toString(16).padStart(6, '0');
 
-      // Coloured accent line
-      const g = this.add.graphics();
-      g.lineStyle(1, ch.accentColor || 0x334466, 0.4);
-      g.lineBetween(20, pos.y - 48, GAME_W - 20, pos.y - 48);
+      // Dark backing plate for legibility
+      this.add.rectangle(GAME_W / 2, y + 8, GAME_W, 46, 0x05040F, 0.62).setDepth(D - 2);
 
-      this.add.text(GAME_W / 2, pos.y - 58, `— Chapter ${ch.id}  ·  ${ch.title} —`, {
-        fontFamily: 'Georgia, serif', fontSize: '11px',
-        color: '#' + ((ch.accentColor || 0x667799)).toString(16).padStart(6, '0'),
-        fontStyle: 'italic', align: 'center',
-      }).setOrigin(0.5);
+      // Soft accent glow over the plate
+      this.add.image(GAME_W / 2, y + 8, 'glow')
+        .setDisplaySize(280, 60).setTint(ch.accentColor || 0x33446A)
+        .setAlpha(0.22).setBlendMode(Phaser.BlendModes.ADD).setDepth(D - 1);
+
+      // Small diamond ornaments either side of the chapter number
+      [GAME_W / 2 - 80, GAME_W / 2 + 80].forEach(x => {
+        this.add.star(x, y + 1, 4, 1.5, 4, ch.accentColor || 0x8899CC, 0.95).setDepth(D);
+      });
+
+      this.add.text(GAME_W / 2, y, `CHAPTER ${ch.id}`, {
+        fontFamily: 'Georgia, serif', fontSize: '10px',
+        color: colHex, fontStyle: 'bold',
+      }).setOrigin(0.5).setAlpha(0.95).setDepth(D);
+
+      this.add.text(GAME_W / 2, y + 17, ch.title, {
+        fontFamily: 'Georgia, serif', fontSize: '17px',
+        color: '#FFFFFF', fontStyle: 'bold',
+      }).setOrigin(0.5).setDepth(D);
     });
   }
 
-  // ── Path lines (world space) ────────────────────────────────────────────────
+  // ── Constellation lines connecting the level stars ──────────────────────────
 
   _drawPath() {
     const highestUnlocked = GameState.get().highestUnlocked || 1;
-    const g = this.add.graphics();
+    const glow = this.add.graphics();
+    const line = this.add.graphics();
 
     for (let i = 0; i < LEVEL_DOTS.length - 1; i++) {
       const a = LEVEL_DOTS[i];
       const b = LEVEL_DOTS[i + 1];
       const unlocked = i + 1 < highestUnlocked;
-      g.lineStyle(4, unlocked ? 0x4455AA : 0x1A2233, unlocked ? 0.85 : 0.5);
-      g.lineBetween(a.x, a.y, b.x, b.y);
+      const accent = this._chapterAccentFor(i + 1);
+
+      if (unlocked) {
+        glow.lineStyle(7, accent, 0.18);
+        glow.lineBetween(a.x, a.y, b.x, b.y);
+        line.lineStyle(1.5, 0xDDE6FF, 0.7);
+        line.lineBetween(a.x, a.y, b.x, b.y);
+      } else {
+        // Faint dotted line for locked legs
+        const steps = Math.max(2, Math.floor(Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y) / 9));
+        line.fillStyle(0x33406A, 0.5);
+        for (let s = 0; s <= steps; s += 2) {
+          const t = s / steps;
+          line.fillCircle(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, 1);
+        }
+      }
     }
   }
 
-  // ── Level dots (world space) ────────────────────────────────────────────────
+  // ── Level stars ──────────────────────────────────────────────────────────────
 
   _drawLevelDots() {
     const highestUnlocked = GameState.get().highestUnlocked || 1;
 
     LEVEL_DOTS.forEach((pos, i) => {
       const levelId = i + 1;
-      const level = LEVELS[i];
-      if (!level) return;
+      if (!LEVELS[i]) return;
 
       const unlocked = levelId <= highestUnlocked;
       const stars = GameState.getStars(levelId);
       const isCurrent = levelId === highestUnlocked;
+      const accent = this._chapterAccentFor(levelId);
 
-      const r = isCurrent ? 22 : 18;
-      const color = unlocked ? (isCurrent ? 0x9955FF : 0x334477) : 0x131828;
-      const borderColor = unlocked ? (isCurrent ? 0xCCAAFF : 0x5566AA) : 0x1E2840;
+      // Halo glow (sized/coloured by state)
+      const haloR = isCurrent ? 56 : unlocked ? 38 : 26;
+      const haloTint = isCurrent ? 0xCCAAFF : unlocked ? accent : 0x223052;
+      const haloA = isCurrent ? 0.5 : unlocked ? 0.32 : 0.16;
+      const halo = this.add.image(pos.x, pos.y, 'glow')
+        .setDisplaySize(haloR, haloR).setTint(haloTint).setAlpha(haloA)
+        .setBlendMode(Phaser.BlendModes.ADD);
 
-      const dot = this.add.circle(pos.x, pos.y, r, color, 1);
-      dot.setStrokeStyle(isCurrent ? 3 : 2, borderColor, 1);
+      // Star core
+      const coreR = isCurrent ? 13 : 11;
+      const coreColor = unlocked ? (isCurrent ? 0xFFFFFF : 0xEAF0FF) : 0x2A3658;
+      const core = this.add.circle(pos.x, pos.y, coreR, coreColor, 1);
+      core.setStrokeStyle(2, unlocked ? (isCurrent ? 0xCCAAFF : accent) : 0x35446E, 1);
 
       if (isCurrent) {
+        const flare = this.add.image(pos.x, pos.y, 'sparkle')
+          .setDisplaySize(46, 46).setTint(0xEEDDFF)
+          .setBlendMode(Phaser.BlendModes.ADD);
         this.tweens.add({
-          targets: dot, scaleX: 1.12, scaleY: 1.12,
-          duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+          targets: [halo, flare], scaleX: '*=1.18', scaleY: '*=1.18', alpha: '-=0.12',
+          duration: 950, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
         });
-        const glow = this.add.circle(pos.x, pos.y, r + 14, 0x9955FF, 0.16);
         this.tweens.add({
-          targets: glow, alpha: 0.03,
-          duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+          targets: core, scaleX: 1.12, scaleY: 1.12,
+          duration: 950, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
         });
       }
 
-      this.add.text(pos.x, pos.y + (stars > 0 ? -5 : 0), String(levelId), {
+      // Level number (hidden on locked far stars to keep them subtle)
+      this.add.text(pos.x, pos.y + (stars > 0 ? -4 : 0), String(levelId), {
         fontFamily: 'Georgia, serif',
-        fontSize: unlocked ? '15px' : '12px',
-        color: unlocked ? '#FFFFFF' : '#2A3A55',
+        fontSize: unlocked ? '13px' : '11px',
+        color: unlocked ? (isCurrent ? '#3A2A66' : '#1A2240') : '#46557E',
         fontStyle: 'bold',
       }).setOrigin(0.5);
 
       if (stars > 0) {
-        this.add.text(pos.x, pos.y + r + 6, '★'.repeat(stars) + '☆'.repeat(3 - stars), {
-          fontFamily: 'Arial', fontSize: '10px', color: '#FFCC00',
+        this.add.text(pos.x, pos.y + coreR + 5, '★'.repeat(stars), {
+          fontFamily: 'Arial', fontSize: '10px', color: '#FFCC44',
         }).setOrigin(0.5, 0);
       }
 
       if (unlocked) {
-        // Use zone + pointerup + didScroll check so dragging doesn't accidentally start a level
-        const zone = this.add.zone(pos.x, pos.y, r * 2.8, r * 2.8).setInteractive();
+        const zone = this.add.zone(pos.x, pos.y, 52, 52).setInteractive();
         zone.on('pointerup', () => {
           if (!this._didScroll) this._startLevel(levelId);
         });

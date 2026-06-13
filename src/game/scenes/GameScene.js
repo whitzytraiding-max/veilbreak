@@ -9,6 +9,7 @@ import { getLevelData } from '../data/levels.js';
 import { GameState } from '../managers/GameState.js';
 import { AdManager } from '../managers/AdManager.js';
 import { AudioManager } from '../managers/AudioManager.js';
+import { Haptic } from '../managers/Haptics.js';
 
 export class GameScene extends Phaser.Scene {
   constructor() { super('Game'); }
@@ -183,6 +184,7 @@ export class GameScene extends Phaser.Scene {
     if (chainLen > this.longestChain) this.longestChain = chainLen;
 
     AudioManager.playChainClear(chain[0].type, chainLen);
+    Haptic.medium();
     this._tickGoal('CHAIN', chainLen);
     this._tickGoal('CONTAIN', veilCleared || 0);
     try { this.effects.chainGlow(chain); } catch (_) {}
@@ -221,6 +223,7 @@ export class GameScene extends Phaser.Scene {
 
     GameState.recordConvergence();
     AudioManager.playConvergence();
+    Haptic.success();
     const type = chain[0].type;
 
     // Collect all nodes of matching type on board
@@ -325,6 +328,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   _fail(reason) {
+    Haptic.heavy();
     this.scene.stop('UIOverlay');
     this.scene.start('Fail', {
       levelId: this.levelId,

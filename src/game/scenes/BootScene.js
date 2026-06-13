@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_W, GAME_H, COLORS, NODE_CONFIG, NODE_TYPES } from '../constants.js';
+import { Settings } from '../managers/SettingsManager.js';
 
 const hex = (n) => '#' + (n & 0xffffff).toString(16).padStart(6, '0');
 
@@ -15,6 +16,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   create() {
+    Settings.apply();
     this.scene.start('Menu');
   }
 

@@ -130,6 +130,14 @@ export class MenuScene extends Phaser.Scene {
   }
 
   _drawUI() {
+    // Settings gear — top-right
+    const gear = this.add.text(GAME_W - 28, 34, '⚙', {
+      fontFamily: 'Arial', fontSize: '26px', color: '#8899CC',
+    }).setOrigin(0.5);
+    this.add.zone(GAME_W - 28, 34, 56, 56).setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => this.scene.start('Settings'));
+    this.tweens.add({ targets: gear, angle: 360, duration: 14000, repeat: -1, ease: 'Linear' });
+
     // Play button
     const btnY = GAME_H * 0.6;
     const btn = this.add.graphics();

@@ -274,6 +274,14 @@ class AudioManagerClass {
     if (!this._musicEnabled) this.stopAmbient();
     return this._musicEnabled;
   }
+
+  setEnabled(b) { this._enabled = !!b; }
+  setMusicEnabled(b) {
+    this._musicEnabled = !!b;
+    if (!b) this.stopAmbient();
+  }
+  isEnabled() { return this._enabled; }
+  isMusicEnabled() { return this._musicEnabled; }
 }
 
 export const AudioManager = new AudioManagerClass();

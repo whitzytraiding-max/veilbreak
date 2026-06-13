@@ -8,6 +8,7 @@ import { UIOverlayScene } from './scenes/UIOverlayScene.js';
 import { WinScene } from './scenes/WinScene.js';
 import { FailScene } from './scenes/FailScene.js';
 import { StoryScene } from './scenes/StoryScene.js';
+import { SettingsScene } from './scenes/SettingsScene.js';
 import { AdManager } from './managers/AdManager.js';
 
 export function createPhaserGame(parent) {
@@ -48,6 +49,7 @@ export function createPhaserGame(parent) {
       WinScene,
       FailScene,
       StoryScene,
+      SettingsScene,
     ],
   };
 

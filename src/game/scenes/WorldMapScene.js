@@ -63,13 +63,18 @@ export class WorldMapScene extends Phaser.Scene {
     this._didScroll = false;
 
     this._drawBg();
+    this._drawCosmicDetail();
     this._drawChapterLabels();
     this._drawPath();
     this._drawLevelDots();
     this._drawFixedHeader();
+    this._startShootingStars();
 
-    // Camera scroll bounds
-    this.cameras.main.setBounds(0, 0, GAME_W, MAP_H);
+    // NOTE: we don't use camera.setBounds here — it clamps scroll assuming a
+    // centred camera origin, which conflicts with fitCamera()'s (0,0) origin and
+    // shoves all world content sideways. scrollY is clamped manually below and in
+    // update()/drag instead; scrollX is pinned to 0.
+    this.cameras.main.scrollX = 0;
 
     // Scroll so current level is centred in the viewport
     const state = GameState.get();
@@ -212,6 +217,85 @@ export class WorldMapScene extends Phaser.Scene {
     }
   }
 
+  // ── Distant planets + veil fractures (depth, theme) ─────────────────────────
+
+  _drawCosmicDetail() {
+    // A few distant worlds drifting far behind (slow parallax)
+    const planets = [
+      { y: 520,  r: 120, c1: 0x3A4E8A, c2: 0x10162E, ring: true,  sf: 0.4 },
+      { y: 1500, r: 90,  c1: 0x8A3A4E, c2: 0x2E1018, ring: false, sf: 0.5 },
+      { y: 2350, r: 150, c1: 0x6A3A8A, c2: 0x20102E, ring: true,  sf: 0.35 },
+      { y: 3250, r: 100, c1: 0x8A7A3A, c2: 0x2E2810, ring: false, sf: 0.5 },
+    ];
+    planets.forEach((p, i) => {
+      const x = i % 2 === 0 ? GAME_W - 40 : 50;
+      // soft outer atmosphere
+      this.add.image(x, p.y, 'glow').setDisplaySize(p.r * 2.4, p.r * 2.4)
+        .setTint(p.c1).setAlpha(0.10).setBlendMode(Phaser.BlendModes.ADD)
+        .setScrollFactor(p.sf);
+      // planet disc with a day/night shaded gradient (drawn as stacked circles)
+      const disc = this.add.circle(x, p.y, p.r, p.c2, 0.9).setScrollFactor(p.sf);
+      const lit = this.add.circle(x - p.r * 0.25, p.y - p.r * 0.25, p.r * 0.7, p.c1, 0.5)
+        .setScrollFactor(p.sf);
+      if (p.ring) {
+        const ring = this.add.ellipse(x, p.y, p.r * 3, p.r * 0.9, 0x000000, 0)
+          .setStrokeStyle(2, p.c1, 0.45).setScrollFactor(p.sf).setAngle(-18);
+      }
+    });
+
+    // Veil fractures — thin glowing cracks in space (ties to the game's theme)
+    for (let i = 0; i < 7; i++) {
+      const fx = Math.random() * GAME_W;
+      const fy = 250 + Math.random() * (MAP_H - 400);
+      const g = this.add.graphics().setScrollFactor(0.75);
+      g.lineStyle(1, 0xAA66FF, 0.0);
+      let px = fx, py = fy;
+      const segs = 3 + Math.floor(Math.random() * 3);
+      const pts = [[px, py]];
+      for (let s = 0; s < segs; s++) {
+        px += (Math.random() - 0.5) * 60;
+        py += 30 + Math.random() * 50;
+        pts.push([px, py]);
+      }
+      // glow + core stroke
+      g.lineStyle(3, 0x7A3AD0, 0.12);
+      g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
+      pts.slice(1).forEach(([x, y]) => g.lineTo(x, y));
+      g.strokePath();
+      g.lineStyle(1, 0xCBA6FF, 0.4);
+      g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
+      pts.slice(1).forEach(([x, y]) => g.lineTo(x, y));
+      g.strokePath();
+      this.tweens.add({ targets: g, alpha: 0.4, duration: 2000 + Math.random() * 2000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: Math.random() * 2000 });
+    }
+  }
+
+  // ── Shooting stars — periodic streaks across the viewport ───────────────────
+
+  _startShootingStars() {
+    const spawn = () => {
+      if (!this.scene.isActive()) return;
+      const fromTop = Math.random() < 0.5;
+      const startX = Math.random() * GAME_W;
+      const startY = fromTop ? -20 : Math.random() * GAME_H * 0.5;
+      const len = 60 + Math.random() * 60;
+      const streak = this.add.image(startX, startY, 'glow')
+        .setDisplaySize(len, 3).setTint(0xCFE0FF)
+        .setBlendMode(Phaser.BlendModes.ADD).setAlpha(0)
+        .setAngle(35).setScrollFactor(0).setDepth(200);
+      this.tweens.add({
+        targets: streak,
+        x: startX + 220, y: startY + 300,
+        alpha: { from: 0.9, to: 0 },
+        duration: 700 + Math.random() * 400,
+        ease: 'Sine.easeIn',
+        onComplete: () => streak.destroy(),
+      });
+      this.time.delayedCall(2500 + Math.random() * 4000, spawn);
+    };
+    this.time.delayedCall(1500 + Math.random() * 2000, spawn);
+  }
+
   // ── Chapter sector labels ────────────────────────────────────────────────────
 
   _drawChapterLabels() {
@@ -284,32 +368,53 @@ export class WorldMapScene extends Phaser.Scene {
     const highestUnlocked = GameState.get().highestUnlocked || 1;
 
     LEVEL_DOTS.forEach((pos, i) => {
+      const level = LEVELS[i];
+      if (!level) return;
       const levelId = i + 1;
-      if (!LEVELS[i]) return;
 
       const unlocked = levelId <= highestUnlocked;
       const stars = GameState.getStars(levelId);
       const isCurrent = levelId === highestUnlocked;
+      const played = stars > 0;
+      const isMilestone = !!level.storyUnlock; // chapter-boss gate
       const accent = this._chapterAccentFor(levelId);
 
-      // Halo glow (sized/coloured by state)
-      const haloR = isCurrent ? 56 : unlocked ? 38 : 26;
-      const haloTint = isCurrent ? 0xCCAAFF : unlocked ? accent : 0x223052;
-      const haloA = isCurrent ? 0.5 : unlocked ? 0.32 : 0.16;
+      // Halo glow — milestones and the current level burn brighter
+      const haloR = isCurrent ? 58 : isMilestone ? 50 : unlocked ? 38 : 26;
+      const haloTint = isCurrent ? 0xCCAAFF : isMilestone ? 0xFFD27A : unlocked ? accent : 0x223052;
+      const haloA = isCurrent ? 0.5 : isMilestone ? 0.4 : unlocked ? 0.3 : 0.15;
       const halo = this.add.image(pos.x, pos.y, 'glow')
         .setDisplaySize(haloR, haloR).setTint(haloTint).setAlpha(haloA)
         .setBlendMode(Phaser.BlendModes.ADD);
 
+      // Milestone gate ring — a decorative double ring + crown ticks
+      if (isMilestone) {
+        const ringColor = unlocked ? 0xFFCC55 : 0x4A4A6E;
+        const ring = this.add.circle(pos.x, pos.y, 18, 0x000000, 0)
+          .setStrokeStyle(2, ringColor, unlocked ? 0.85 : 0.5);
+        for (let a = 0; a < 8; a++) {
+          const ang = (a / 8) * Math.PI * 2;
+          this.add.star(pos.x + Math.cos(ang) * 22, pos.y + Math.sin(ang) * 22, 4, 0.8, 2.4,
+            ringColor, unlocked ? 0.9 : 0.5);
+        }
+        if (unlocked) {
+          this.tweens.add({
+            targets: ring, scaleX: 1.14, scaleY: 1.14, alpha: 0.5,
+            duration: 1300, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+          });
+        }
+      }
+
       // Star core
-      const coreR = isCurrent ? 13 : 11;
-      const coreColor = unlocked ? (isCurrent ? 0xFFFFFF : 0xEAF0FF) : 0x2A3658;
+      const coreR = isCurrent ? 13 : isMilestone ? 13 : 11;
+      const coreColor = unlocked ? (isCurrent ? 0xFFFFFF : isMilestone ? 0xFFF4DC : 0xEAF0FF) : 0x2A3658;
+      const strokeColor = unlocked ? (isCurrent ? 0xCCAAFF : isMilestone ? 0xFFCC55 : accent) : 0x35446E;
       const core = this.add.circle(pos.x, pos.y, coreR, coreColor, 1);
-      core.setStrokeStyle(2, unlocked ? (isCurrent ? 0xCCAAFF : accent) : 0x35446E, 1);
+      core.setStrokeStyle(isMilestone ? 2.5 : 2, strokeColor, 1);
 
       if (isCurrent) {
         const flare = this.add.image(pos.x, pos.y, 'sparkle')
-          .setDisplaySize(46, 46).setTint(0xEEDDFF)
-          .setBlendMode(Phaser.BlendModes.ADD);
+          .setDisplaySize(48, 48).setTint(0xEEDDFF).setBlendMode(Phaser.BlendModes.ADD);
         this.tweens.add({
           targets: [halo, flare], scaleX: '*=1.18', scaleY: '*=1.18', alpha: '-=0.12',
           duration: 950, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
@@ -320,27 +425,68 @@ export class WorldMapScene extends Phaser.Scene {
         });
       }
 
-      // Level number (hidden on locked far stars to keep them subtle)
-      this.add.text(pos.x, pos.y + (stars > 0 ? -4 : 0), String(levelId), {
+      // Level number
+      this.add.text(pos.x, pos.y, String(levelId), {
         fontFamily: 'Georgia, serif',
         fontSize: unlocked ? '13px' : '11px',
-        color: unlocked ? (isCurrent ? '#3A2A66' : '#1A2240') : '#46557E',
+        color: unlocked ? (isCurrent || isMilestone ? '#3A2A12' : '#1A2240') : '#46557E',
         fontStyle: 'bold',
       }).setOrigin(0.5);
 
-      if (stars > 0) {
-        this.add.text(pos.x, pos.y + coreR + 5, '★'.repeat(stars), {
-          fontFamily: 'Arial', fontSize: '10px', color: '#FFCC44',
-        }).setOrigin(0.5, 0);
+      if (!unlocked) {
+        // Locked — small padlock just below the dim star
+        this._drawLock(pos.x, pos.y + coreR + 8);
+      } else if (played) {
+        // Played — show earned star rating above the node
+        this._drawStarPips(pos.x, pos.y - coreR - 9, stars);
+      } else {
+        // Unlocked but not yet cleared — hint the level's main challenge
+        const goal = (level.goals && level.goals[0]) ? level.goals[0].type : null;
+        if (goal) this._drawGoalGlyph(pos.x, pos.y + coreR + 9, goal);
       }
 
       if (unlocked) {
-        const zone = this.add.zone(pos.x, pos.y, 52, 52).setInteractive();
+        const zone = this.add.zone(pos.x, pos.y, 54, 54).setInteractive();
         zone.on('pointerup', () => {
           if (!this._didScroll) this._startLevel(levelId);
         });
       }
     });
+  }
+
+  // 3-pip star rating (lit = earned)
+  _drawStarPips(cx, cy, earned) {
+    const gap = 8;
+    for (let s = 0; s < 3; s++) {
+      const x = cx + (s - 1) * gap;
+      const lit = s < earned;
+      this.add.star(x, cy, 5, 1.4, 3.4, lit ? 0xFFCC44 : 0x3A4664, lit ? 1 : 0.7);
+    }
+  }
+
+  // Small element-coloured glyph hinting the level's goal type
+  _drawGoalGlyph(cx, cy, type) {
+    const map = {
+      CLEAR:   { ch: '✦', color: '#88BBFF' },
+      ANCHOR:  { ch: '⬡', color: '#FFCC44' },
+      CONTAIN: { ch: '◈', color: '#BB55FF' },
+      CHAIN:   { ch: '↯', color: '#33FF88' },
+    };
+    const g = map[type] || { ch: '◦', color: '#8899CC' };
+    this.add.text(cx, cy, g.ch, {
+      fontFamily: 'Arial', fontSize: '11px', color: g.color,
+    }).setOrigin(0.5).setAlpha(0.85);
+  }
+
+  // Tiny padlock for locked levels
+  _drawLock(cx, cy) {
+    const g = this.add.graphics();
+    g.fillStyle(0x46557E, 0.9);
+    g.fillRoundedRect(cx - 4, cy - 1, 8, 6, 1.5);   // body
+    g.lineStyle(1.4, 0x46557E, 0.9);
+    g.beginPath();
+    g.arc(cx, cy - 1, 2.4, Math.PI, 0);             // shackle
+    g.strokePath();
   }
 
   // ── Fixed header (scrollFactor 0, always on top) ───────────────────────────

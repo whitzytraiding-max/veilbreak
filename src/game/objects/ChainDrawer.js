@@ -98,22 +98,54 @@ export class ChainDrawer {
     }
     if (existingIdx !== -1) return;
 
-    // Extend chain: same type, adjacent to last, not veil
-    if (
-      node.type === first.type &&
-      this.hexGrid.areAdjacent(last.col, last.row, node.col, node.row) &&
-      !this.hexGrid.isVeil(node.col, node.row)
-    ) {
-      this.chain.push(node);
-      node.highlight(true);
-      AudioManager.playNodeAdd(node.type);
-      this._redrawLine();
+    // Only same-type, non-veil cells can join the chain
+    if (node.type !== first.type || this.hexGrid.isVeil(node.col, node.row)) return;
 
-      // Also clear adjacent veil when extending chain
-      this.hexGrid.getNeighbors(node.col, node.row).forEach(([c, r]) => {
-        if (this.hexGrid.clearVeilAt(c, r)) this._chainVeilCleared++;
-      });
+    if (this.hexGrid.areAdjacent(last.col, last.row, node.col, node.row)) {
+      this._addToChain(node);
+    } else {
+      // Fast swipe: the finger jumped past one or more cells between pointermove
+      // events. Bridge the gap with a same-type adjacent path so the move lands
+      // instead of being silently dropped (the "doesn't connect" feeling).
+      const path = this._findPath(last, node);
+      if (path) path.forEach(n => this._addToChain(n));
     }
+  }
+
+  _addToChain(node) {
+    this.chain.push(node);
+    node.highlight(true);
+    AudioManager.playNodeAdd(node.type);
+    this.hexGrid.getNeighbors(node.col, node.row).forEach(([c, r]) => {
+      if (this.hexGrid.clearVeilAt(c, r)) this._chainVeilCleared++;
+    });
+    this._redrawLine();
+  }
+
+  // BFS for the shortest same-type adjacent path from `from` to `to`, skipping
+  // cells already in the chain. Returns the cells to append (excluding `from`),
+  // or null if there's no clean bridge.
+  _findPath(from, to) {
+    const type = this.chain[0].type;
+    const key = (c, r) => c + ',' + r;
+    const inChain = new Set(this.chain.map(n => key(n.col, n.row)));
+    const seen = new Set([key(from.col, from.row)]);
+    const queue = [[from]];
+    while (queue.length) {
+      const path = queue.shift();
+      const cur = path[path.length - 1];
+      if (cur === to) return path.slice(1);
+      if (path.length > 4) continue;               // cap bridge length
+      for (const [c, r] of this.hexGrid.getNeighbors(cur.col, cur.row)) {
+        const k = key(c, r);
+        if (seen.has(k)) continue;
+        const nb = this.hexGrid.getNode(c, r);
+        if (!nb || nb.type !== type || this.hexGrid.isVeil(c, r) || inChain.has(k)) continue;
+        seen.add(k);
+        queue.push([...path, nb]);
+      }
+    }
+    return null;
   }
 
   _onUp() {

@@ -61,9 +61,10 @@ export class HexGrid {
   }
 
   getCellAtPoint(px, py) {
-    // Find closest cell center within touch radius
+    // Find closest cell center within a forgiving touch radius (~1 cell), so
+    // fingers reliably grab the nearest orb rather than falling into dead zones.
     let best = null;
-    let bestDist = HEX_RADIUS * 1.5;
+    let bestDist = HEX_RADIUS * 1.9;
     for (let c = 0; c < COLS; c++) {
       for (let r = 0; r < ROWS; r++) {
         const { x, y } = this.cellToPixel(c, r);

@@ -1,6 +1,6 @@
 export const CHAPTERS = [
   {
-    id: 1,
+    id: 1, startLevel: 1,
     title: 'The Shattered Coast',
     subtitle: 'Where the world first broke',
     bgColor: 0x080E1A,
@@ -9,8 +9,7 @@ export const CHAPTERS = [
     unlocked: true,
     storyPanels: [
       {
-        bg: 0x080E1A,
-        accent: 0x3B7AE8,
+        bg: 0x080E1A, accent: 0x3B7AE8,
         title: 'The First Tear',
         lines: [
           'The ocean remembered being whole.',
@@ -23,7 +22,7 @@ export const CHAPTERS = [
     ],
   },
   {
-    id: 2,
+    id: 2, startLevel: 11,
     title: 'Ember Vaults',
     subtitle: 'Fire that never sleeps',
     bgColor: 0x180A04,
@@ -32,8 +31,7 @@ export const CHAPTERS = [
     unlocked: false,
     storyPanels: [
       {
-        bg: 0x180A04,
-        accent: 0xE83B3B,
+        bg: 0x180A04, accent: 0xE83B3B,
         title: 'Beneath the Flame',
         lines: [
           'Deep underground, temples still burned.',
@@ -46,7 +44,7 @@ export const CHAPTERS = [
     ],
   },
   {
-    id: 3,
+    id: 3, startLevel: 16,
     title: 'Whisper Forests',
     subtitle: 'Trees that speak in static',
     bgColor: 0x080E08,
@@ -55,8 +53,7 @@ export const CHAPTERS = [
     unlocked: false,
     storyPanels: [
       {
-        bg: 0x080E08,
-        accent: 0x2EAA4E,
+        bg: 0x080E08, accent: 0x2EAA4E,
         title: 'The Living Dark',
         lines: [
           'The forest had eyes.',
@@ -69,7 +66,7 @@ export const CHAPTERS = [
     ],
   },
   {
-    id: 4,
+    id: 4, startLevel: 26,
     title: 'The Pale Sky',
     subtitle: 'Islands that drift between worlds',
     bgColor: 0x0A0A18,
@@ -78,8 +75,7 @@ export const CHAPTERS = [
     unlocked: false,
     storyPanels: [
       {
-        bg: 0x0A0A18,
-        accent: 0xAACCFF,
+        bg: 0x0A0A18, accent: 0xAACCFF,
         title: 'Above the Break',
         lines: [
           'Above the shattered ground, islands drifted.',
@@ -87,6 +83,94 @@ export const CHAPTERS = [
           'not yet.',
           'You rose to meet it before it learned',
           'how to climb.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 5, startLevel: 36,
+    title: 'The Sunken Archives',
+    subtitle: 'Records of what was lost',
+    bgColor: 0x040E18,
+    accentColor: 0x2299CC,
+    nodeTypes: ['WATER', 'AIR', 'SHADOW', 'LIGHT'],
+    unlocked: false,
+    storyPanels: [
+      {
+        bg: 0x040E18, accent: 0x2299CC,
+        title: 'What the Water Kept',
+        lines: [
+          'Beneath the ocean floor lay a library.',
+          'Every page recorded something the Veil',
+          'was trying to erase.',
+          'You dove into the cold and the dark',
+          'to keep the record whole.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 6, startLevel: 46,
+    title: 'The Void Lattice',
+    subtitle: 'A structure made of nothing',
+    bgColor: 0x080010,
+    accentColor: 0xAA33FF,
+    nodeTypes: ['FIRE', 'WATER', 'EARTH', 'AIR', 'SHADOW', 'LIGHT'],
+    unlocked: false,
+    storyPanels: [
+      {
+        bg: 0x080010, accent: 0xAA33FF,
+        title: 'The Shape of the Veil',
+        lines: [
+          'The Veil had built something.',
+          'A lattice of pure dark, geometric and cold.',
+          'It did not grow. It was designed.',
+          'You entered the structure',
+          'and began to unmake it from within.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 7, startLevel: 56,
+    title: 'The Fracture Heart',
+    subtitle: 'Where it all began to break',
+    bgColor: 0x140804,
+    accentColor: 0xFF4422,
+    nodeTypes: ['FIRE', 'WATER', 'EARTH', 'AIR', 'SHADOW', 'LIGHT'],
+    unlocked: false,
+    storyPanels: [
+      {
+        bg: 0x140804, accent: 0xFF4422,
+        title: 'The Source',
+        lines: [
+          'At the center of all fractures',
+          'was a single point of origin.',
+          'The Veil pulsed from here like a heartbeat.',
+          'To stop it, you had to reach the heart.',
+          'And hearts do not break easily.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 8, startLevel: 66,
+    title: 'The Final Veil',
+    subtitle: 'One last mending',
+    bgColor: 0x04040C,
+    accentColor: 0xFFEE44,
+    nodeTypes: ['FIRE', 'WATER', 'EARTH', 'AIR', 'SHADOW', 'LIGHT'],
+    unlocked: false,
+    storyPanels: [
+      {
+        bg: 0x04040C, accent: 0xFFEE44,
+        title: 'The Last Threshold',
+        lines: [
+          'The Veil was everything now.',
+          'Sky and sea and stone and silence —',
+          'all consumed.',
+          'But you were still here.',
+          'Still mending.',
         ],
       },
     ],

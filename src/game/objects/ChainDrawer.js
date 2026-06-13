@@ -63,20 +63,30 @@ export class ChainDrawer {
     const first = this.chain[0];
     const last = this.chain[this.chain.length - 1];
 
-    // Loop closure → convergence (requires 5+ nodes to form a meaningful loop)
+    if (this.pendingConvergence) return;
+
+    // Ring closure → convergence: the player steps onto a node that is adjacent
+    // to BOTH the current chain tail AND the chain head, closing a real polygon.
+    // The closing node must be a fresh cell — not the start node itself.
     if (
       this.chain.length >= 5 &&
-      node === first &&
-      !this.pendingConvergence
+      node !== first &&
+      node.type === first.type &&
+      !this.hexGrid.isVeil(node.col, node.row) &&
+      this.chain.indexOf(node) === -1 &&
+      this.hexGrid.areAdjacent(last.col, last.row, node.col, node.row) &&
+      this.hexGrid.areAdjacent(node.col, node.row, first.col, first.row)
     ) {
+      this.chain.push(node);
+      node.highlight(true);
+      AudioManager.playNodeAdd(node.type);
       this.pendingConvergence = true;
-      this._drawConvergenceRing(first);
+      this._drawConvergenceRing(first, node);
+      this._redrawLine();
       return;
     }
 
-    if (this.pendingConvergence) return;
-
-    // Already in chain — allow backtracking
+    // Already in chain — allow backtracking one step
     const existingIdx = this.chain.indexOf(node);
     if (existingIdx !== -1 && existingIdx === this.chain.length - 2) {
       const removed = this.chain.pop();
@@ -165,6 +175,17 @@ export class ChainDrawer {
     this.chain.slice(1).forEach(n => this._lineGfx.lineTo(n.x, n.y));
     this._lineGfx.strokePath();
 
+    // When convergence is pending, draw the closing edge back to the first node
+    // so the polygon looks fully sealed before the player lifts their finger
+    if (this.pendingConvergence && this.chain.length >= 2) {
+      const fst = this.chain[0];
+      const lst = this.chain[this.chain.length - 1];
+      this._glowGfx.lineStyle(ANIM.CHAIN_LINE_WIDTH + 8, cfg.glow, 0.35);
+      this._glowGfx.lineBetween(lst.x, lst.y, fst.x, fst.y);
+      this._lineGfx.lineStyle(ANIM.CHAIN_LINE_WIDTH, cfg.mid, 0.6);
+      this._lineGfx.lineBetween(lst.x, lst.y, fst.x, fst.y);
+    }
+
     // Dots at each node
     this.chain.forEach(n => {
       this._lineGfx.fillStyle(0xFFFFFF, 0.8);
@@ -195,13 +216,19 @@ export class ChainDrawer {
     }
   }
 
-  _drawConvergenceRing(node) {
+  // Draw rings on both the first node and the closing node to show the polygon sealed
+  _drawConvergenceRing(firstNode, closingNode) {
     this._ringGfx.clear();
-    const r = 36;
-    this._ringGfx.lineStyle(3, 0xFFFFFF, 0.9);
-    this._ringGfx.strokeCircle(node.x, node.y, r);
-    this._ringGfx.lineStyle(6, NODE_CONFIG[node.type].glow, 0.5);
-    this._ringGfx.strokeCircle(node.x, node.y, r + 6);
+    const glow = NODE_CONFIG[firstNode.type].glow;
+
+    [firstNode, closingNode].forEach(node => {
+      if (!node) return;
+      const r = 36;
+      this._ringGfx.lineStyle(3, 0xFFFFFF, 0.9);
+      this._ringGfx.strokeCircle(node.x, node.y, r);
+      this._ringGfx.lineStyle(6, glow, 0.5);
+      this._ringGfx.strokeCircle(node.x, node.y, r + 6);
+    });
 
     this.scene.tweens.add({
       targets: this._ringGfx,

@@ -6,10 +6,9 @@ import { LEVELS } from '../data/levels.js';
 import { CHAPTERS } from '../data/chapters.js';
 import { fitCamera } from '../resScale.js';
 
-const MAP_H = 3800;
-
-// Winding path — one entry per level (index 0 = level 1)
-const LEVEL_DOTS = [
+// Base winding path — one entry per level (index 0 = level 1). Chapter gaps are
+// added on top of these at runtime (see _buildDots) so labels get clear space.
+const BASE_DOTS = [
   // Chapter 1 (1–10)
   { x: 310, y: 140 }, { x: 270, y: 190 }, { x: 310, y: 245 },
   { x: 260, y: 295 }, { x: 200, y: 320 }, { x: 155, y: 275 },
@@ -50,6 +49,8 @@ const LEVEL_DOTS = [
   { x: 200, y: 3600 },
 ];
 
+const CHAPTER_GAP = 96;   // extra vertical space inserted before each new chapter
+
 export class WorldMapScene extends Phaser.Scene {
   constructor() { super('WorldMap'); }
 
@@ -62,31 +63,38 @@ export class WorldMapScene extends Phaser.Scene {
     this._lastPtrY = 0;
     this._didScroll = false;
 
+    this._buildDots();
+
     this._drawBg();
     this._drawCosmicDetail();
-    this._drawChapterLabels();
     this._drawPath();
+    this._drawChapterLabels();
     this._drawLevelDots();
     this._drawFixedHeader();
     this._startShootingStars();
 
-    // NOTE: we don't use camera.setBounds here — it clamps scroll assuming a
-    // centred camera origin, which conflicts with fitCamera()'s (0,0) origin and
-    // shoves all world content sideways. scrollY is clamped manually below and in
-    // update()/drag instead; scrollX is pinned to 0.
+    // No camera.setBounds (its clamp assumes a centred origin and fights
+    // fitCamera's 0,0 origin). scrollX pinned to 0; scrollY clamped manually.
     this.cameras.main.scrollX = 0;
-
-    // Scroll so current level is centred in the viewport
     const state = GameState.get();
-    const idx = Math.min((state.highestUnlocked || 1) - 1, LEVEL_DOTS.length - 1);
-    const dot = LEVEL_DOTS[idx];
+    const idx = Math.min((state.highestUnlocked || 1) - 1, this.dots.length - 1);
     this.cameras.main.scrollY = Phaser.Math.Clamp(
-      dot.y - GAME_H * 0.55,
-      0,
-      MAP_H - GAME_H
+      this.dots[idx].y - GAME_H * 0.5, 0, this.mapH - GAME_H,
     );
 
     this._setupScroll();
+  }
+
+  // Build the spaced-out path: shift every level down by CHAPTER_GAP for each
+  // chapter boundary above it, so a clean gap opens before each chapter banner.
+  _buildDots() {
+    const chapterIndexOf = (levelIdx) => {
+      let ci = 0;
+      CHAPTERS.forEach((ch, k) => { if (levelIdx >= (ch.startLevel || 1) - 1) ci = k; });
+      return ci;
+    };
+    this.dots = BASE_DOTS.map((p, i) => ({ x: p.x, y: p.y + CHAPTER_GAP * chapterIndexOf(i) }));
+    this.mapH = this.dots[this.dots.length - 1].y + 220;
   }
 
   update() {
@@ -96,17 +104,13 @@ export class WorldMapScene extends Phaser.Scene {
     }
     this._vel *= 0.90;
     this.cameras.main.scrollY = Phaser.Math.Clamp(
-      this.cameras.main.scrollY + this._vel,
-      0,
-      MAP_H - GAME_H
+      this.cameras.main.scrollY + this._vel, 0, this.mapH - GAME_H,
     );
   }
 
   // ── Scroll input ────────────────────────────────────────────────────────────
 
   _setupScroll() {
-    // ptr.x/y are in canvas-backing space (design × RES once the retina zoom is
-    // applied), but scrollY is in world units — normalise pointer Y by the zoom.
     const py = (ptr) => ptr.y / (this.cameras.main.zoom || 1);
 
     this.input.on('pointerdown', (ptr) => {
@@ -126,9 +130,7 @@ export class WorldMapScene extends Phaser.Scene {
       this._lastPtrY = y;
       if (Math.abs(dy) > 6) this._didScroll = true;
       this.cameras.main.scrollY = Phaser.Math.Clamp(
-        this._dragStartScrollY + dy,
-        0,
-        MAP_H - GAME_H
+        this._dragStartScrollY + dy, 0, this.mapH - GAME_H,
       );
     });
 
@@ -138,15 +140,14 @@ export class WorldMapScene extends Phaser.Scene {
 
   // ── Chapter helpers ─────────────────────────────────────────────────────────
 
-  // Vertical [yStart, yEnd] world band each chapter occupies along the path,
-  // plus its accent colour — used to tint nebula sectors and constellation lines.
   _chapterBands() {
     return CHAPTERS.map((ch, i) => {
       const startIdx = (ch.startLevel || 1) - 1;
       const next = CHAPTERS[i + 1];
-      const endIdx = next ? (next.startLevel || 1) - 1 : LEVEL_DOTS.length;
-      const yStart = (LEVEL_DOTS[startIdx] || LEVEL_DOTS[0]).y - 70;
-      const yEnd = (LEVEL_DOTS[Math.min(endIdx, LEVEL_DOTS.length - 1)]).y;
+      const endIdx = next ? (next.startLevel || 1) - 1 : this.dots.length;
+      // band starts in the gap above the chapter's first node
+      const yStart = (this.dots[startIdx] || this.dots[0]).y - CHAPTER_GAP * 0.62;
+      const yEnd = (this.dots[Math.min(endIdx, this.dots.length - 1)]).y;
       return { ch, startIdx, endIdx, yStart, yEnd };
     });
   }
@@ -159,43 +160,36 @@ export class WorldMapScene extends Phaser.Scene {
   // ── Deep-space background: parallax stars + per-chapter nebula sectors ───────
 
   _drawBg() {
-    this.add.rectangle(GAME_W / 2, MAP_H / 2, GAME_W, MAP_H, COLORS.BG, 1);
+    this.add.rectangle(GAME_W / 2, this.mapH / 2, GAME_W, this.mapH, COLORS.BG, 1);
 
-    // Coloured nebula clouds anchored to each chapter's band, so scrolling moves
-    // you through visibly distinct regions (blue coast → fiery vaults → …).
     this._chapterBands().forEach((b, i) => {
       const accent = b.ch.accentColor || 0x33446A;
       const midY = (b.yStart + b.yEnd) / 2;
       const clouds = [
-        { x: i % 2 === 0 ? 90 : 310, y: midY - 40, r: 230, a: 0.16 },
-        { x: i % 2 === 0 ? 300 : 100, y: midY + 70, r: 180, a: 0.11 },
-        { x: GAME_W / 2, y: midY, r: 300, a: 0.06 },
+        { x: i % 2 === 0 ? 90 : 310, y: midY - 40, r: 240, a: 0.16 },
+        { x: i % 2 === 0 ? 300 : 100, y: midY + 80, r: 190, a: 0.11 },
+        { x: GAME_W / 2, y: midY, r: 320, a: 0.06 },
       ];
       clouds.forEach(c => {
         const neb = this.add.image(c.x, c.y, 'glow')
-          .setDisplaySize(c.r, c.r)
-          .setTint(accent)
-          .setAlpha(c.a)
+          .setDisplaySize(c.r, c.r).setTint(accent).setAlpha(c.a)
           .setBlendMode(Phaser.BlendModes.ADD);
         this.tweens.add({
           targets: neb, alpha: c.a * 0.55,
           duration: 5000 + Math.random() * 4000,
-          yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
-          delay: Math.random() * 3000,
+          yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: Math.random() * 3000,
         });
       });
     });
 
-    // Parallax star layers — far stars drift slower for a sense of depth.
-    this._starLayer(140, 0.35, 0.9, 0.28);
-    this._starLayer(120, 0.6, 1.2, 0.4);
-    this._starLayer(160, 1.0, 1.5, 0.55);
+    this._starLayer(150, 0.35, 0.9, 0.28);
+    this._starLayer(130, 0.6, 1.2, 0.4);
+    this._starLayer(170, 1.0, 1.5, 0.55);
 
-    // A handful of bright twinkling flares
-    for (let i = 0; i < 26; i++) {
-      const fl = this.add.image(Math.random() * GAME_W, Math.random() * MAP_H, 'sparkle')
-        .setDisplaySize(10, 10)
-        .setAlpha(Math.random() * 0.4 + 0.2)
+    const flares = Math.round(this.mapH / 150);
+    for (let i = 0; i < flares; i++) {
+      const fl = this.add.image(Math.random() * GAME_W, Math.random() * this.mapH, 'sparkle')
+        .setDisplaySize(10, 10).setAlpha(Math.random() * 0.4 + 0.2)
         .setBlendMode(Phaser.BlendModes.ADD);
       this.tweens.add({
         targets: fl, alpha: 0.05, scale: fl.scale * 0.6,
@@ -207,12 +201,9 @@ export class WorldMapScene extends Phaser.Scene {
 
   _starLayer(count, scrollFactor, maxR, maxA) {
     for (let i = 0; i < count; i++) {
-      const star = this.add.circle(
-        Math.random() * GAME_W,
-        Math.random() * MAP_H,
-        Math.random() * maxR + 0.3,
-        0xFFFFFF,
-        Math.random() * maxA + 0.06,
+      this.add.circle(
+        Math.random() * GAME_W, Math.random() * this.mapH,
+        Math.random() * maxR + 0.3, 0xFFFFFF, Math.random() * maxA + 0.06,
       ).setScrollFactor(scrollFactor);
     }
   }
@@ -220,35 +211,32 @@ export class WorldMapScene extends Phaser.Scene {
   // ── Distant planets + veil fractures (depth, theme) ─────────────────────────
 
   _drawCosmicDetail() {
-    // A few distant worlds drifting far behind (slow parallax)
+    const H = this.mapH;
     const planets = [
-      { y: 520,  r: 120, c1: 0x3A4E8A, c2: 0x10162E, ring: true,  sf: 0.4 },
-      { y: 1500, r: 90,  c1: 0x8A3A4E, c2: 0x2E1018, ring: false, sf: 0.5 },
-      { y: 2350, r: 150, c1: 0x6A3A8A, c2: 0x20102E, ring: true,  sf: 0.35 },
-      { y: 3250, r: 100, c1: 0x8A7A3A, c2: 0x2E2810, ring: false, sf: 0.5 },
+      { f: 0.13, r: 120, c1: 0x3A4E8A, c2: 0x10162E, ring: true,  sf: 0.4 },
+      { f: 0.39, r: 90,  c1: 0x8A3A4E, c2: 0x2E1018, ring: false, sf: 0.5 },
+      { f: 0.62, r: 150, c1: 0x6A3A8A, c2: 0x20102E, ring: true,  sf: 0.35 },
+      { f: 0.85, r: 100, c1: 0x8A7A3A, c2: 0x2E2810, ring: false, sf: 0.5 },
     ];
     planets.forEach((p, i) => {
       const x = i % 2 === 0 ? GAME_W - 40 : 50;
-      // soft outer atmosphere
-      this.add.image(x, p.y, 'glow').setDisplaySize(p.r * 2.4, p.r * 2.4)
-        .setTint(p.c1).setAlpha(0.10).setBlendMode(Phaser.BlendModes.ADD)
-        .setScrollFactor(p.sf);
-      // planet disc with a day/night shaded gradient (drawn as stacked circles)
-      const disc = this.add.circle(x, p.y, p.r, p.c2, 0.9).setScrollFactor(p.sf);
-      const lit = this.add.circle(x - p.r * 0.25, p.y - p.r * 0.25, p.r * 0.7, p.c1, 0.5)
-        .setScrollFactor(p.sf);
+      const y = H * p.f;
+      this.add.image(x, y, 'glow').setDisplaySize(p.r * 2.4, p.r * 2.4)
+        .setTint(p.c1).setAlpha(0.1).setBlendMode(Phaser.BlendModes.ADD).setScrollFactor(p.sf);
+      this.add.circle(x, y, p.r, p.c2, 0.9).setScrollFactor(p.sf);
+      this.add.circle(x - p.r * 0.25, y - p.r * 0.25, p.r * 0.7, p.c1, 0.5).setScrollFactor(p.sf);
       if (p.ring) {
-        const ring = this.add.ellipse(x, p.y, p.r * 3, p.r * 0.9, 0x000000, 0)
+        this.add.ellipse(x, y, p.r * 3, p.r * 0.9, 0x000000, 0)
           .setStrokeStyle(2, p.c1, 0.45).setScrollFactor(p.sf).setAngle(-18);
       }
     });
 
-    // Veil fractures — thin glowing cracks in space (ties to the game's theme)
-    for (let i = 0; i < 7; i++) {
+    // Veil fractures — thin glowing cracks in space
+    const fractures = Math.round(H / 540);
+    for (let i = 0; i < fractures; i++) {
       const fx = Math.random() * GAME_W;
-      const fy = 250 + Math.random() * (MAP_H - 400);
+      const fy = 250 + Math.random() * (H - 500);
       const g = this.add.graphics().setScrollFactor(0.75);
-      g.lineStyle(1, 0xAA66FF, 0.0);
       let px = fx, py = fy;
       const segs = 3 + Math.floor(Math.random() * 3);
       const pts = [[px, py]];
@@ -257,15 +245,12 @@ export class WorldMapScene extends Phaser.Scene {
         py += 30 + Math.random() * 50;
         pts.push([px, py]);
       }
-      // glow + core stroke
       g.lineStyle(3, 0x7A3AD0, 0.12);
       g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
-      pts.slice(1).forEach(([x, y]) => g.lineTo(x, y));
-      g.strokePath();
+      pts.slice(1).forEach(([x, y]) => g.lineTo(x, y)); g.strokePath();
       g.lineStyle(1, 0xCBA6FF, 0.4);
       g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
-      pts.slice(1).forEach(([x, y]) => g.lineTo(x, y));
-      g.strokePath();
+      pts.slice(1).forEach(([x, y]) => g.lineTo(x, y)); g.strokePath();
       this.tweens.add({ targets: g, alpha: 0.4, duration: 2000 + Math.random() * 2000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: Math.random() * 2000 });
     }
   }
@@ -275,60 +260,57 @@ export class WorldMapScene extends Phaser.Scene {
   _startShootingStars() {
     const spawn = () => {
       if (!this.scene.isActive()) return;
-      const fromTop = Math.random() < 0.5;
       const startX = Math.random() * GAME_W;
-      const startY = fromTop ? -20 : Math.random() * GAME_H * 0.5;
+      const startY = -20 + Math.random() * GAME_H * 0.4;
       const len = 60 + Math.random() * 60;
       const streak = this.add.image(startX, startY, 'glow')
         .setDisplaySize(len, 3).setTint(0xCFE0FF)
         .setBlendMode(Phaser.BlendModes.ADD).setAlpha(0)
         .setAngle(35).setScrollFactor(0).setDepth(200);
       this.tweens.add({
-        targets: streak,
-        x: startX + 220, y: startY + 300,
-        alpha: { from: 0.9, to: 0 },
-        duration: 700 + Math.random() * 400,
-        ease: 'Sine.easeIn',
-        onComplete: () => streak.destroy(),
+        targets: streak, x: startX + 220, y: startY + 300,
+        alpha: { from: 0.9, to: 0 }, duration: 700 + Math.random() * 400,
+        ease: 'Sine.easeIn', onComplete: () => streak.destroy(),
       });
       this.time.delayedCall(2500 + Math.random() * 4000, spawn);
     };
     this.time.delayedCall(1500 + Math.random() * 2000, spawn);
   }
 
-  // ── Chapter sector labels ────────────────────────────────────────────────────
+  // ── Chapter sector banners (sit in the gap above each chapter) ───────────────
 
   _drawChapterLabels() {
-    // Labels sit above the constellation (nodes are depth 0) but below the fixed
-    // header (depth 500). A dark plate keeps them legible over stars and dots.
     const D = 300;
     this._chapterBands().forEach(b => {
       const ch = b.ch;
-      const y = b.yStart - 6;
-      const colHex = '#' + (ch.accentColor || 0x8899CC).toString(16).padStart(6, '0');
+      const accent = ch.accentColor || 0x8899CC;
+      const colHex = '#' + accent.toString(16).padStart(6, '0');
+      const y = (this.dots[b.startIdx] || this.dots[0]).y - CHAPTER_GAP * 0.55;
 
-      // Dark backing plate for legibility
-      this.add.rectangle(GAME_W / 2, y + 8, GAME_W, 46, 0x05040F, 0.62).setDepth(D - 2);
+      // Soft dark vignette for legibility (no hard rectangle)
+      this.add.image(GAME_W / 2, y + 2, 'glow')
+        .setDisplaySize(330, 96).setTint(0x000000).setAlpha(0.5).setDepth(D - 2);
+      // Accent bloom
+      this.add.image(GAME_W / 2, y + 2, 'glow')
+        .setDisplaySize(300, 70).setTint(accent).setAlpha(0.16)
+        .setBlendMode(Phaser.BlendModes.ADD).setDepth(D - 1);
 
-      // Soft accent glow over the plate
-      this.add.image(GAME_W / 2, y + 8, 'glow')
-        .setDisplaySize(280, 60).setTint(ch.accentColor || 0x33446A)
-        .setAlpha(0.22).setBlendMode(Phaser.BlendModes.ADD).setDepth(D - 1);
-
-      // Small diamond ornaments either side of the chapter number
-      [GAME_W / 2 - 80, GAME_W / 2 + 80].forEach(x => {
-        this.add.star(x, y + 1, 4, 1.5, 4, ch.accentColor || 0x8899CC, 0.95).setDepth(D);
-      });
-
-      this.add.text(GAME_W / 2, y, `CHAPTER ${ch.id}`, {
-        fontFamily: 'Georgia, serif', fontSize: '10px',
-        color: colHex, fontStyle: 'bold',
-      }).setOrigin(0.5).setAlpha(0.95).setDepth(D);
-
-      this.add.text(GAME_W / 2, y + 17, ch.title, {
-        fontFamily: 'Georgia, serif', fontSize: '17px',
-        color: '#FFFFFF', fontStyle: 'bold',
+      this.add.text(GAME_W / 2, y - 14, `CHAPTER ${ch.id}`, {
+        fontFamily: 'Georgia, serif', fontSize: '10px', color: colHex,
+        fontStyle: 'bold', letterSpacing: 4,
       }).setOrigin(0.5).setDepth(D);
+
+      this.add.text(GAME_W / 2, y + 7, ch.title, {
+        fontFamily: 'Georgia, serif', fontSize: '19px', color: '#FFFFFF', fontStyle: 'bold',
+      }).setOrigin(0.5).setDepth(D);
+
+      // Underline flourish: two segments with a centre diamond
+      const uy = y + 23, hw = 76;
+      const g = this.add.graphics().setDepth(D);
+      g.lineStyle(1, accent, 0.55);
+      g.lineBetween(GAME_W / 2 - hw, uy, GAME_W / 2 - 12, uy);
+      g.lineBetween(GAME_W / 2 + 12, uy, GAME_W / 2 + hw, uy);
+      this.add.star(GAME_W / 2, uy, 4, 1.6, 4.5, accent, 0.95).setDepth(D);
     });
   }
 
@@ -339,9 +321,9 @@ export class WorldMapScene extends Phaser.Scene {
     const glow = this.add.graphics();
     const line = this.add.graphics();
 
-    for (let i = 0; i < LEVEL_DOTS.length - 1; i++) {
-      const a = LEVEL_DOTS[i];
-      const b = LEVEL_DOTS[i + 1];
+    for (let i = 0; i < this.dots.length - 1; i++) {
+      const a = this.dots[i];
+      const b = this.dots[i + 1];
       const unlocked = i + 1 < highestUnlocked;
       const accent = this._chapterAccentFor(i + 1);
 
@@ -351,7 +333,6 @@ export class WorldMapScene extends Phaser.Scene {
         line.lineStyle(1.5, 0xDDE6FF, 0.7);
         line.lineBetween(a.x, a.y, b.x, b.y);
       } else {
-        // Faint dotted line for locked legs
         const steps = Math.max(2, Math.floor(Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y) / 9));
         line.fillStyle(0x33406A, 0.5);
         for (let s = 0; s <= steps; s += 2) {
@@ -367,7 +348,7 @@ export class WorldMapScene extends Phaser.Scene {
   _drawLevelDots() {
     const highestUnlocked = GameState.get().highestUnlocked || 1;
 
-    LEVEL_DOTS.forEach((pos, i) => {
+    this.dots.forEach((pos, i) => {
       const level = LEVELS[i];
       if (!level) return;
       const levelId = i + 1;
@@ -376,10 +357,9 @@ export class WorldMapScene extends Phaser.Scene {
       const stars = GameState.getStars(levelId);
       const isCurrent = levelId === highestUnlocked;
       const played = stars > 0;
-      const isMilestone = !!level.storyUnlock; // chapter-boss gate
+      const isMilestone = !!level.storyUnlock;
       const accent = this._chapterAccentFor(levelId);
 
-      // Halo glow — milestones and the current level burn brighter
       const haloR = isCurrent ? 58 : isMilestone ? 50 : unlocked ? 38 : 26;
       const haloTint = isCurrent ? 0xCCAAFF : isMilestone ? 0xFFD27A : unlocked ? accent : 0x223052;
       const haloA = isCurrent ? 0.5 : isMilestone ? 0.4 : unlocked ? 0.3 : 0.15;
@@ -387,7 +367,6 @@ export class WorldMapScene extends Phaser.Scene {
         .setDisplaySize(haloR, haloR).setTint(haloTint).setAlpha(haloA)
         .setBlendMode(Phaser.BlendModes.ADD);
 
-      // Milestone gate ring — a decorative double ring + crown ticks
       if (isMilestone) {
         const ringColor = unlocked ? 0xFFCC55 : 0x4A4A6E;
         const ring = this.add.circle(pos.x, pos.y, 24, 0x000000, 0)
@@ -405,7 +384,6 @@ export class WorldMapScene extends Phaser.Scene {
         }
       }
 
-      // Star core
       const coreR = isCurrent ? 17 : isMilestone ? 17 : 15;
       const coreColor = unlocked ? (isCurrent ? 0xFFFFFF : isMilestone ? 0xFFF4DC : 0xEAF0FF) : 0x2A3658;
       const strokeColor = unlocked ? (isCurrent ? 0xCCAAFF : isMilestone ? 0xFFCC55 : accent) : 0x35446E;
@@ -425,36 +403,28 @@ export class WorldMapScene extends Phaser.Scene {
         });
       }
 
-      // Level number
       this.add.text(pos.x, pos.y, String(levelId), {
-        fontFamily: 'Georgia, serif',
-        fontSize: unlocked ? '16px' : '13px',
+        fontFamily: 'Georgia, serif', fontSize: unlocked ? '16px' : '13px',
         color: unlocked ? (isCurrent || isMilestone ? '#3A2A12' : '#16203C') : '#46557E',
         fontStyle: 'bold',
       }).setOrigin(0.5);
 
       if (!unlocked) {
-        // Locked — small padlock just below the dim star
         this._drawLock(pos.x, pos.y + coreR + 8);
       } else if (played) {
-        // Played — show earned star rating above the node
         this._drawStarPips(pos.x, pos.y - coreR - 9, stars);
       } else {
-        // Unlocked but not yet cleared — hint the level's main challenge
         const goal = (level.goals && level.goals[0]) ? level.goals[0].type : null;
         if (goal) this._drawGoalGlyph(pos.x, pos.y + coreR + 9, goal);
       }
 
       if (unlocked) {
         const zone = this.add.zone(pos.x, pos.y, 66, 66).setInteractive();
-        zone.on('pointerup', () => {
-          if (!this._didScroll) this._startLevel(levelId);
-        });
+        zone.on('pointerup', () => { if (!this._didScroll) this._startLevel(levelId); });
       }
     });
   }
 
-  // 3-pip star rating (lit = earned)
   _drawStarPips(cx, cy, earned) {
     const gap = 8;
     for (let s = 0; s < 3; s++) {
@@ -464,7 +434,6 @@ export class WorldMapScene extends Phaser.Scene {
     }
   }
 
-  // Small element-coloured glyph hinting the level's goal type
   _drawGoalGlyph(cx, cy, type) {
     const map = {
       CLEAR:   { ch: '✦', color: '#88BBFF' },
@@ -478,14 +447,13 @@ export class WorldMapScene extends Phaser.Scene {
     }).setOrigin(0.5).setAlpha(0.85);
   }
 
-  // Tiny padlock for locked levels
   _drawLock(cx, cy) {
     const g = this.add.graphics();
     g.fillStyle(0x46557E, 0.9);
-    g.fillRoundedRect(cx - 4, cy - 1, 8, 6, 1.5);   // body
+    g.fillRoundedRect(cx - 4, cy - 1, 8, 6, 1.5);
     g.lineStyle(1.4, 0x46557E, 0.9);
     g.beginPath();
-    g.arc(cx, cy - 1, 2.4, Math.PI, 0);             // shackle
+    g.arc(cx, cy - 1, 2.4, Math.PI, 0);
     g.strokePath();
   }
 
@@ -494,37 +462,29 @@ export class WorldMapScene extends Phaser.Scene {
   _drawFixedHeader() {
     const DEPTH = 500;
 
-    // Dark background strip
     this.add.rectangle(GAME_W / 2, 28, GAME_W, 56, 0x080818, 0.96)
       .setScrollFactor(0).setDepth(DEPTH);
-
-    // Bottom border
     const border = this.add.graphics().setScrollFactor(0).setDepth(DEPTH);
     border.lineStyle(1, COLORS.HEX_BORDER, 0.5);
     border.lineBetween(0, 56, GAME_W, 56);
 
-    // Back arrow
     this.add.text(22, 28, '←', {
       fontFamily: 'Arial', fontSize: '28px', color: '#8899CC',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 1);
-
     this.add.zone(22, 28, 60, 56).setInteractive({ useHandCursor: true })
       .setScrollFactor(0).setDepth(DEPTH + 2)
       .on('pointerdown', () => this.scene.start('Menu'));
 
-    // Title
     this.add.text(GAME_W / 2, 28, 'REALMS', {
-      fontFamily: 'Georgia, serif', fontSize: '22px',
-      color: '#FFFFFF', fontStyle: 'bold',
+      fontFamily: 'Georgia, serif', fontSize: '22px', color: '#FFFFFF', fontStyle: 'bold',
+      letterSpacing: 3,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 1);
 
-    // Lives
     const lives = LivesManager.getLives();
     this.add.text(GAME_W - 18, 28, '♥'.repeat(lives), {
       fontFamily: 'Arial', fontSize: '18px', color: '#FF4466',
     }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(DEPTH + 1);
 
-    // Scroll hint — fades out after 2s
     const hint = this.add.text(GAME_W / 2, GAME_H - 22, 'scroll to explore', {
       fontFamily: 'Georgia, serif', fontSize: '12px', color: '#334466',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 1);

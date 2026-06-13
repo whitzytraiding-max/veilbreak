@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_W, GAME_H, COLORS } from '../constants.js';
 import { AdManager } from '../managers/AdManager.js';
-import { LivesManager } from '../managers/LivesManager.js';
 import { fitCamera } from '../resScale.js';
 
 export class FailScene extends Phaser.Scene {
@@ -35,8 +34,8 @@ export class FailScene extends Phaser.Scene {
   }
 
   _showUI() {
-    const lives = LivesManager.getLives();
     const msg = this.reason === 'veil' ? 'The Veil consumed the board' : 'Out of moves';
+    const hasAd = this.reason === 'moves';
 
     this.add.text(GAME_W / 2, GAME_H * 0.28, '✦', {
       fontFamily: 'Arial', fontSize: '48px', color: '#550077',
@@ -54,42 +53,23 @@ export class FailScene extends Phaser.Scene {
       fontFamily: 'Georgia, serif', fontSize: '13px', color: '#445566',
     }).setOrigin(0.5);
 
-    // Watch ad for +3 moves
-    if (this.reason === 'moves') {
-      this._addAdButton(GAME_W / 2, GAME_H * 0.62, '+3 Moves', '▶ Watch Ad', 0x1A3A1A, 0x33FF88, () => {
+    // Watch ad for +3 moves (only when you ran out of moves)
+    if (hasAd) {
+      this._addAdButton(GAME_W / 2, GAME_H * 0.63, '+3 Moves', '▶ Watch Ad', 0x1A3A1A, 0x33FF88, () => {
         AdManager.showRewarded('EXTRA_MOVES', () => {
           this.scene.start('Game', { levelId: this.levelId, extraMoves: 3 });
         });
       });
     }
 
-    // Watch ad for a life back
-    if (lives === 0) {
-      this._addAdButton(GAME_W / 2, GAME_H * 0.72, 'Get a Life', '▶ Watch Ad', 0x2A1A0A, 0xFFAA33, () => {
-        AdManager.showRewarded('EXTRA_LIFE', () => {
-          LivesManager.addLife();
-          this.scene.start('WorldMap');
-        });
-      });
-    }
-
-    // Retry
-    const retryY = lives > 0 ? GAME_H * 0.74 : GAME_H * 0.82;
-    this._addButton(GAME_W / 2, retryY + (this.reason === 'moves' ? 12 : 0), 'Try Again', 0x7733CC, 0xFFFFFF, () => {
-      if (!LivesManager.hasLife()) { this._showNoLives(); return; }
+    // Retry — unlimited (no lives)
+    this._addButton(GAME_W / 2, hasAd ? GAME_H * 0.75 : GAME_H * 0.66, 'Try Again', 0x7733CC, 0xFFFFFF, () => {
       this.scene.start('Game', { levelId: this.levelId });
     });
 
-    this._addButton(GAME_W / 2, GAME_H * 0.86, 'Map', 0x111122, 0x8899CC, () => {
+    this._addButton(GAME_W / 2, hasAd ? GAME_H * 0.85 : GAME_H * 0.76, 'Map', 0x111122, 0x8899CC, () => {
       this.scene.start('WorldMap');
     }, true);
-  }
-
-  _showNoLives() {
-    const t = this.add.text(GAME_W / 2, GAME_H * 0.8, 'No lives — come back later!', {
-      fontFamily: 'Georgia, serif', fontSize: '14px', color: '#FF4466',
-    }).setOrigin(0.5);
-    this.time.delayedCall(2500, () => this.scene.start('WorldMap'));
   }
 
   _addAdButton(x, y, title, subtitle, bgColor, accentColor, onTap) {

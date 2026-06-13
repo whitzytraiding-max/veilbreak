@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_W, GAME_H, COLORS } from '../constants.js';
 import { GameState } from '../managers/GameState.js';
-import { LivesManager } from '../managers/LivesManager.js';
 import { LEVELS } from '../data/levels.js';
 import { CHAPTERS } from '../data/chapters.js';
 import { fitCamera } from '../resScale.js';
@@ -512,11 +511,6 @@ export class WorldMapScene extends Phaser.Scene {
       letterSpacing: 3,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 1);
 
-    const lives = LivesManager.getLives();
-    this.add.text(GAME_W - 18, 28, '♥'.repeat(lives), {
-      fontFamily: 'Arial', fontSize: '18px', color: '#FF4466',
-    }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(DEPTH + 1);
-
     const hint = this.add.text(GAME_W / 2, GAME_H - 22, 'scroll to explore', {
       fontFamily: 'Georgia, serif', fontSize: '12px', color: '#334466',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 1);
@@ -526,30 +520,7 @@ export class WorldMapScene extends Phaser.Scene {
   // ── Level start ─────────────────────────────────────────────────────────────
 
   _startLevel(levelId) {
-    if (!LivesManager.hasLife()) {
-      this._showNoLivesPopup();
-      return;
-    }
     GameState.setCurrentLevel(levelId);
     this.scene.start('Game', { levelId });
-  }
-
-  _showNoLivesPopup() {
-    const overlay = this.add.rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, 0x000000, 0.75)
-      .setScrollFactor(0).setDepth(900).setInteractive();
-    const secs = LivesManager.getSecondsUntilNextLife();
-    const mins = Math.ceil(secs / 60);
-    [
-      { y: GAME_H / 2 - 55, text: 'No lives left!', size: '24px', color: '#FF4466' },
-      { y: GAME_H / 2 - 15, text: `Next life in ${mins} min`, size: '16px', color: '#AABBCC' },
-    ].forEach(({ y, text, size, color }) => {
-      this.add.text(GAME_W / 2, y, text, {
-        fontFamily: 'Georgia, serif', fontSize: size, color,
-      }).setOrigin(0.5).setScrollFactor(0).setDepth(901);
-    });
-    const close = this.add.text(GAME_W / 2, GAME_H / 2 + 45, 'OK', {
-      fontFamily: 'Georgia, serif', fontSize: '20px', color: '#FFFFFF', fontStyle: 'bold',
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(901).setInteractive({ useHandCursor: true });
-    close.on('pointerdown', () => { overlay.destroy(); close.destroy(); });
   }
 }

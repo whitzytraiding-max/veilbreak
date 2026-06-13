@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 import { GAME_W, GAME_H, COLORS } from '../constants.js';
-import { LivesManager } from '../managers/LivesManager.js';
 import { fitCamera } from '../resScale.js';
 
 export class UIOverlayScene extends Phaser.Scene {
@@ -47,11 +46,6 @@ export class UIOverlayScene extends Phaser.Scene {
     this.add.text(GAME_W / 2, 40, this.levelData.name, {
       fontFamily: 'Georgia, serif', fontSize: '18px', color: '#FFFFFF', fontStyle: 'bold',
     }).setOrigin(0.5);
-
-    const lives = LivesManager.getLives();
-    this.add.text(GAME_W - 16, H / 2, '♥'.repeat(lives), {
-      fontFamily: 'Arial', fontSize: '18px', color: '#FF4466',
-    }).setOrigin(1, 0.5);
   }
 
   // ── Goal bar — one accent pill per objective ────────────────────────────────

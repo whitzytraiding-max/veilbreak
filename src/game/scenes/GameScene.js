@@ -7,7 +7,6 @@ import { VeilManager } from '../objects/VeilManager.js';
 import { Effects } from '../objects/Effects.js';
 import { getLevelData } from '../data/levels.js';
 import { GameState } from '../managers/GameState.js';
-import { LivesManager } from '../managers/LivesManager.js';
 import { AdManager } from '../managers/AdManager.js';
 import { AudioManager } from '../managers/AudioManager.js';
 
@@ -326,7 +325,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   _fail(reason) {
-    LivesManager.loseLife();
     this.scene.stop('UIOverlay');
     this.scene.start('Fail', {
       levelId: this.levelId,

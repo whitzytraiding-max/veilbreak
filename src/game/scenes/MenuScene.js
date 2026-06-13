@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 import { GAME_W, GAME_H, COLORS, NODE_CONFIG } from '../constants.js';
-import { LivesManager } from '../managers/LivesManager.js';
 import { fitCamera } from '../resScale.js';
 
 export class MenuScene extends Phaser.Scene {
@@ -155,42 +154,12 @@ export class MenuScene extends Phaser.Scene {
     zone.on('pointerover', () => btnText.setColor('#DDAAFF'));
     zone.on('pointerout', () => btnText.setColor('#FFFFFF'));
 
-    // Lives display
-    const lives = LivesManager.getLives();
-    this._drawHearts(GAME_W / 2, GAME_H * 0.72, lives);
-
     // Version
     this.add.text(GAME_W / 2, GAME_H - 18, 'v0.1', {
       fontFamily: 'monospace',
       fontSize: '12px',
       color: '#334466',
     }).setOrigin(0.5);
-  }
-
-  _drawHearts(cx, cy, count) {
-    const max = 5;
-    const spacing = 36;
-    const startX = cx - ((max - 1) * spacing) / 2;
-    for (let i = 0; i < max; i++) {
-      const x = startX + i * spacing;
-      const filled = i < count;
-      const heart = this.add.text(x, cy, '♥', {
-        fontFamily: 'Arial',
-        fontSize: '24px',
-        color: filled ? '#FF4466' : '#332244',
-      }).setOrigin(0.5);
-      if (filled) {
-        this.tweens.add({
-          targets: heart,
-          scaleX: 1.1,
-          scaleY: 1.1,
-          duration: 800 + i * 150,
-          yoyo: true,
-          repeat: -1,
-          ease: 'Sine.easeInOut',
-        });
-      }
-    }
   }
 
   _roundRect(g, x, y, w, h, r) {

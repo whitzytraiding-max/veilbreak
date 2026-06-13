@@ -12,7 +12,8 @@ export class HexGrid {
     this.veilCells = {}; // key = `${col},${row}` = true
 
     this._bgGraphics = scene.add.graphics().setDepth(DEPTHS.HEX_GRID);
-    this._veilGraphics = scene.add.graphics().setDepth(DEPTHS.VEIL);
+    // Veil renders ABOVE the orbs so it visibly shrouds them (below the chain line)
+    this._veilGraphics = scene.add.graphics().setDepth(DEPTHS.NODES + 5);
     this._veilPulseT = 0;
     this._veilLastRedraw = 0;
     this._drawBackground();
@@ -166,9 +167,11 @@ export class HexGrid {
   }
 
   spreadVeil(cells) {
+    const now = this.scene.time.now;
     cells.forEach(([c, r]) => {
-      if (c >= 0 && c < COLS && r >= 0 && r < ROWS) {
-        this.veilCells[`${c},${r}`] = true;
+      if (c >= 0 && c < COLS && r >= 0 && r < ROWS && !this.veilCells[`${c},${r}`]) {
+        // store the birth time so _redrawVeil can grow each cell in
+        this.veilCells[`${c},${r}`] = now;
       }
     });
     this._redrawVeil();
@@ -198,7 +201,7 @@ export class HexGrid {
 
   updateVeil(time) {
     this._veilPulseT = time;
-    if (time - this._veilLastRedraw < 50) return;
+    if (time - this._veilLastRedraw < 33) return;
     this._veilLastRedraw = time;
     if (Object.keys(this.veilCells).length > 0) {
       this._redrawVeil();
@@ -257,25 +260,45 @@ export class HexGrid {
     const pulse = Math.sin(t * 0.0025) * 0.5 + 0.5; // 0→1→0 slow cycle
     const g = this._veilGraphics;
     g.clear();
-    Object.keys(this.veilCells).forEach(key => {
+    Object.entries(this.veilCells).forEach(([key, birth]) => {
       const [c, r] = key.split(',').map(Number);
       const { x, y } = this.cellToPixel(c, r);
-      const pts = this._hexPoints(x, y, HEX_RADIUS - 1);
+      // grow each cell in over ~320ms so spreading reads as creeping corruption
+      const age = typeof birth === 'number' ? t - birth : 9999;
+      const grow = Phaser.Math.Clamp(age / 320, 0, 1);
+      const ease = grow * (2 - grow); // easeOutQuad
+      const rr = (HEX_RADIUS - 1) * (0.5 + 0.5 * ease);
+      const a = ease; // overall opacity ramp
+      const pts = this._hexPoints(x, y, rr);
 
-      // Dark corrupted fill
-      g.fillStyle(COLORS.VEIL_FILL, 0.92);
+      // 1. Soft purple corruption glow bleeding past the cell edge
+      g.fillStyle(0x8A1AFF, (0.06 + pulse * 0.06) * a);
+      g.fillCircle(x, y, rr * 1.35);
+
+      // 2. Dark membrane shrouding the orb (two layers for depth)
+      g.fillStyle(0x190630, 0.82 * a);
+      g.fillPoints(pts, true);
+      g.fillStyle(0x3A0A66, (0.35 + pulse * 0.15) * a);
       g.fillPoints(pts, true);
 
-      // Pulsing border glow
-      g.lineStyle(2 + pulse * 1.5, COLORS.VEIL_BORDER, 0.65 + pulse * 0.35);
+      // 3. Bright pulsing edge — the clearest "this is veiled" signal
+      g.lineStyle(2.5 + pulse * 2, 0xC24DFF, (0.7 + pulse * 0.3) * a);
       g.strokePoints(pts, true);
 
-      // Inner corruption mark — pulses size and brightness
-      const dotR = 5 + pulse * 5;
-      g.fillStyle(0x6600AA, 0.28 + pulse * 0.3);
-      g.fillCircle(x, y, dotR);
-      g.fillStyle(0xCC00FF, 0.12 + pulse * 0.18);
-      g.fillCircle(x, y, dotR * 0.45);
+      // 4. Drifting corruption motes inside
+      const spin = t * 0.002;
+      for (let i = 0; i < 3; i++) {
+        const ang = spin + i * 2.1;
+        const mr = (HEX_RADIUS - 9) * (0.35 + 0.32 * Math.sin(spin * 1.3 + i));
+        const mx = x + Math.cos(ang) * mr;
+        const my = y + Math.sin(ang) * mr;
+        g.fillStyle(0xE7B0FF, (0.22 + pulse * 0.2) * a);
+        g.fillCircle(mx, my, (2.4 + pulse * 1.6) * ease);
+      }
+
+      // 5. Glowing core
+      g.fillStyle(0xCC55FF, (0.2 + pulse * 0.25) * a);
+      g.fillCircle(x, y, (4 + pulse * 3) * ease);
     });
   }
 }

@@ -38,14 +38,56 @@ export class HexNode extends Phaser.GameObjects.Container {
       .setDisplaySize(ORB_DISPLAY, ORB_DISPLAY);
     this.add(this._orb);
 
+    // Hot core that breathes in/out — additive over the orb centre
+    this._core = this.scene.add.image(0, 0, 'orbcore_' + this.type)
+      .setDisplaySize(ORB_DISPLAY * 0.72, ORB_DISPLAY * 0.72)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setAlpha(0.55);
+    this.add(this._core);
+
     // Elemental glyph drawn crisp on top
     this._symbol = this.scene.add.graphics();
     this._drawSymbol();
     this.add(this._symbol);
 
+    // Two glowing motes slowly orbiting the orb — the "magic" tell
+    this._motes = this.scene.add.container(0, 0);
+    const moteR = ORB_DISPLAY * 0.52;
+    for (let i = 0; i < 2; i++) {
+      const m = this.scene.add.image(i === 0 ? moteR : -moteR, 0, 'glow')
+        .setDisplaySize(7, 7)
+        .setTint(cfg.light)
+        .setBlendMode(Phaser.BlendModes.ADD)
+        .setAlpha(0.85);
+      this._motes.add(m);
+    }
+    this.add(this._motes);
+
     // Anchor indicator (drawn only if anchor)
     this._anchorRing = this.scene.add.graphics();
     this.add(this._anchorRing);
+
+    this._startMagic();
+  }
+
+  // Continuous "alive" animation — independent of the chain/idle scale tweens so
+  // it survives highlight()'s killTweensOf(this) (those target the container).
+  _startMagic() {
+    this.scene.tweens.add({
+      targets: this._core,
+      alpha: 0.95,
+      scaleX: this._core.scaleX * 1.18,
+      scaleY: this._core.scaleY * 1.18,
+      duration: 1100 + Math.random() * 900,
+      delay: Math.random() * 1200,
+      yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+    });
+    this.scene.tweens.add({
+      targets: this._motes,
+      rotation: Math.PI * 2,
+      duration: 6000 + Math.random() * 4000,
+      repeat: -1, ease: 'Linear',
+    });
   }
 
   _drawSymbol(alpha = 1) {

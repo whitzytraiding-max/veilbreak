@@ -34,37 +34,63 @@ export class BootScene extends Phaser.Scene {
 
     // 1. Outer bloom halo — soft colored light bleeding off the orb
     let halo = ctx.createRadialGradient(c, c, bodyR * 0.6, c, c, haloR);
-    halo.addColorStop(0, this._rgba(cfg.glow, 0.55));
-    halo.addColorStop(0.5, this._rgba(cfg.glow, 0.20));
+    halo.addColorStop(0, this._rgba(cfg.glow, 0.6));
+    halo.addColorStop(0.5, this._rgba(cfg.glow, 0.22));
     halo.addColorStop(1, this._rgba(cfg.glow, 0));
     ctx.fillStyle = halo;
     ctx.fillRect(0, 0, S, S);
 
-    // 2. Sphere body — bright hot core → mid → darker rim for 3D depth.
-    //    Light source is upper-left, so the gradient centre is offset up-left.
+    // 2. Sphere body — darker rim → mid, leaving the centre for the energy core
     const bx = c - bodyR * 0.18;
     const by = c - bodyR * 0.20;
     let body = ctx.createRadialGradient(bx, by, bodyR * 0.05, c, c, bodyR);
-    body.addColorStop(0, this._rgba(cfg.light, 1));
-    body.addColorStop(0.35, this._rgba(cfg.mid, 1));
-    body.addColorStop(0.78, this._rgba(cfg.base, 1));
-    body.addColorStop(1, this._rgba(this._darken(cfg.base, 0.55), 1));
+    body.addColorStop(0, this._rgba(cfg.mid, 1));
+    body.addColorStop(0.45, this._rgba(cfg.base, 1));
+    body.addColorStop(0.82, this._rgba(this._darken(cfg.base, 0.7), 1));
+    body.addColorStop(1, this._rgba(this._darken(cfg.base, 0.45), 1));
     ctx.fillStyle = body;
     ctx.beginPath();
     ctx.arc(c, c, bodyR, 0, Math.PI * 2);
     ctx.fill();
 
-    // 3. Inner energy core — a hot bloom pulsing at the centre
-    let core = ctx.createRadialGradient(c, c, 0, c, c, bodyR * 0.55);
-    core.addColorStop(0, this._rgba(0xffffff, 0.75));
-    core.addColorStop(0.4, this._rgba(cfg.light, 0.45));
-    core.addColorStop(1, this._rgba(cfg.light, 0));
+    // 3. Swirling plasma energy — additive bright wisps clipped to the sphere,
+    //    so the orb looks alive and molten rather than like a solid gem.
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(c, c, bodyR, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.globalCompositeOperation = 'lighter';
+    const wisps = [
+      { x: c - bodyR * 0.22, y: c - bodyR * 0.10, r: bodyR * 0.55, a: 0.5 },
+      { x: c + bodyR * 0.28, y: c + bodyR * 0.18, r: bodyR * 0.42, a: 0.4 },
+      { x: c + bodyR * 0.05, y: c - bodyR * 0.30, r: bodyR * 0.30, a: 0.45 },
+      { x: c - bodyR * 0.10, y: c + bodyR * 0.32, r: bodyR * 0.35, a: 0.35 },
+    ];
+    wisps.forEach(w => {
+      const grd = ctx.createRadialGradient(w.x, w.y, 0, w.x, w.y, w.r);
+      grd.addColorStop(0, this._rgba(cfg.light, w.a));
+      grd.addColorStop(0.6, this._rgba(cfg.glow, w.a * 0.45));
+      grd.addColorStop(1, this._rgba(cfg.glow, 0));
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, 0, S, S);
+    });
+    ctx.restore();
+
+    // 4. Hot energy core — intense white-hot centre with a colored aura
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    let core = ctx.createRadialGradient(c, c, 0, c, c, bodyR * 0.62);
+    core.addColorStop(0, this._rgba(0xffffff, 0.95));
+    core.addColorStop(0.25, this._rgba(cfg.light, 0.7));
+    core.addColorStop(0.6, this._rgba(cfg.glow, 0.25));
+    core.addColorStop(1, this._rgba(cfg.glow, 0));
     ctx.fillStyle = core;
     ctx.beginPath();
-    ctx.arc(c, c, bodyR * 0.55, 0, Math.PI * 2);
+    ctx.arc(c, c, bodyR * 0.62, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
 
-    // 4. Rim light — thin brighter arc on the lower-right edge (glass sphere)
+    // 5. Rim light — thin brighter arc on the lower-right edge (glass sphere)
     ctx.save();
     ctx.beginPath();
     ctx.arc(c, c, bodyR, 0, Math.PI * 2);
@@ -74,24 +100,44 @@ export class BootScene extends Phaser.Scene {
       c + bodyR * 0.35, c + bodyR * 0.4, bodyR * 1.05,
     );
     rim.addColorStop(0, this._rgba(cfg.glow, 0));
-    rim.addColorStop(1, this._rgba(cfg.glow, 0.5));
+    rim.addColorStop(1, this._rgba(cfg.glow, 0.55));
     ctx.fillStyle = rim;
     ctx.fillRect(0, 0, S, S);
     ctx.restore();
 
-    // 5. Glassy specular highlight — small bright blob, upper-left
+    // 6. Glassy specular highlight — small bright blob, upper-left
     const sx = c - bodyR * 0.34;
     const sy = c - bodyR * 0.40;
-    let spec = ctx.createRadialGradient(sx, sy, 0, sx, sy, bodyR * 0.34);
+    let spec = ctx.createRadialGradient(sx, sy, 0, sx, sy, bodyR * 0.32);
     spec.addColorStop(0, this._rgba(0xffffff, 0.95));
-    spec.addColorStop(0.5, this._rgba(0xffffff, 0.30));
+    spec.addColorStop(0.5, this._rgba(0xffffff, 0.28));
     spec.addColorStop(1, this._rgba(0xffffff, 0));
     ctx.fillStyle = spec;
     ctx.beginPath();
-    ctx.arc(sx, sy, bodyR * 0.34, 0, Math.PI * 2);
+    ctx.arc(sx, sy, bodyR * 0.32, 0, Math.PI * 2);
     ctx.fill();
 
     this._addCanvasTexture('orb_' + type, cv);
+
+    // Separate hot-core texture so HexNode can pulse it independently for "life"
+    this._makeOrbCore(type, cfg);
+  }
+
+  // Independent core glow that HexNode breathes in/out over the orb
+  _makeOrbCore(type, cfg) {
+    const S = 96;
+    const c = S / 2;
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = S;
+    const ctx = cv.getContext('2d');
+    const g = ctx.createRadialGradient(c, c, 0, c, c, c);
+    g.addColorStop(0, this._rgba(0xffffff, 0.95));
+    g.addColorStop(0.35, this._rgba(cfg.light, 0.6));
+    g.addColorStop(0.7, this._rgba(cfg.glow, 0.18));
+    g.addColorStop(1, this._rgba(cfg.glow, 0));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, S, S);
+    this._addCanvasTexture('orbcore_' + type, cv);
   }
 
   // ── Soft circular glow (used for nebula clouds, bloom, particles) ───────────

@@ -384,11 +384,34 @@ export class WorldMapScene extends Phaser.Scene {
         }
       }
 
+      // Magical glowing core — filled with the chapter's colour (no flat white)
       const coreR = isCurrent ? 17 : isMilestone ? 17 : 15;
-      const coreColor = unlocked ? (isCurrent ? 0xFFFFFF : isMilestone ? 0xFFF4DC : 0xEAF0FF) : 0x2A3658;
-      const strokeColor = unlocked ? (isCurrent ? 0xCCAAFF : isMilestone ? 0xFFCC55 : accent) : 0x35446E;
-      const core = this.add.circle(pos.x, pos.y, coreR, coreColor, 1);
-      core.setStrokeStyle(isMilestone ? 2.5 : 2, strokeColor, 1);
+      let fill, inner, stroke, numColor, numStroke;
+      if (!unlocked) {
+        fill = 0x161E32; inner = 0x222C48; stroke = 0x35446E; numColor = '#46557E'; numStroke = null;
+      } else if (isMilestone) {
+        fill = 0xE0A82E; inner = 0xFFE9A6; stroke = 0xFFD24A; numColor = '#3A2A12'; numStroke = null;
+      } else if (isCurrent) {
+        fill = this._lighten(accent, 0.2); inner = this._lighten(accent, 0.7);
+        stroke = 0xFFFFFF; numColor = '#0B1020'; numStroke = null;
+      } else {
+        fill = accent; inner = this._lighten(accent, 0.55);
+        stroke = this._lighten(accent, 0.4); numColor = '#FFFFFF'; numStroke = '#05040F';
+      }
+
+      // Additive bloom right on the node so unlocked levels glow rather than sit flat
+      if (unlocked) {
+        this.add.image(pos.x, pos.y, 'glow')
+          .setDisplaySize(coreR * 2.6, coreR * 2.6)
+          .setTint(isMilestone ? 0xFFCC55 : accent)
+          .setAlpha(isCurrent ? 0.55 : 0.4)
+          .setBlendMode(Phaser.BlendModes.ADD);
+      }
+
+      const core = this.add.circle(pos.x, pos.y, coreR, fill, 1);
+      core.setStrokeStyle(isMilestone ? 2.5 : 2, stroke, 1);
+      // lit in-hue centre (a brighter shade of the same colour, never white)
+      this.add.circle(pos.x, pos.y, coreR * 0.52, inner, 0.85);
 
       if (isCurrent) {
         const flare = this.add.image(pos.x, pos.y, 'sparkle')
@@ -403,11 +426,11 @@ export class WorldMapScene extends Phaser.Scene {
         });
       }
 
-      this.add.text(pos.x, pos.y, String(levelId), {
+      const numText = this.add.text(pos.x, pos.y, String(levelId), {
         fontFamily: 'Georgia, serif', fontSize: unlocked ? '16px' : '13px',
-        color: unlocked ? (isCurrent || isMilestone ? '#3A2A12' : '#16203C') : '#46557E',
-        fontStyle: 'bold',
+        color: numColor, fontStyle: 'bold',
       }).setOrigin(0.5);
+      if (numStroke) numText.setStroke(numStroke, 3);
 
       if (!unlocked) {
         this._drawLock(pos.x, pos.y + coreR + 8);
@@ -423,6 +446,15 @@ export class WorldMapScene extends Phaser.Scene {
         zone.on('pointerup', () => { if (!this._didScroll) this._startLevel(levelId); });
       }
     });
+  }
+
+  // Mix a colour toward white by factor f (0..1)
+  _lighten(hex, f) {
+    const r = (hex >> 16) & 0xff, g = (hex >> 8) & 0xff, b = hex & 0xff;
+    const lr = Math.round(r + (255 - r) * f);
+    const lg = Math.round(g + (255 - g) * f);
+    const lb = Math.round(b + (255 - b) * f);
+    return (lr << 16) | (lg << 8) | lb;
   }
 
   _drawStarPips(cx, cy, earned) {

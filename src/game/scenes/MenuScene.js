@@ -1,11 +1,13 @@
 import Phaser from 'phaser';
 import { GAME_W, GAME_H, COLORS, NODE_CONFIG } from '../constants.js';
 import { LivesManager } from '../managers/LivesManager.js';
+import { fitCamera } from '../resScale.js';
 
 export class MenuScene extends Phaser.Scene {
   constructor() { super('Menu'); }
 
   create() {
+    fitCamera(this);
     this._drawBg();
     this._spawnStars();
     this._spawnFloatingOrbs();

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_W, GAME_H, COLORS } from '../constants.js';
 import { LivesManager } from '../managers/LivesManager.js';
+import { fitCamera } from '../resScale.js';
 
 export class UIOverlayScene extends Phaser.Scene {
   constructor() { super('UIOverlay'); }
@@ -13,6 +14,7 @@ export class UIOverlayScene extends Phaser.Scene {
   }
 
   create() {
+    fitCamera(this);
     this._drawTopBar();
     this._drawGoalBar();
     this._drawBottomBar();

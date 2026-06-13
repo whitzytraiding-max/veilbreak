@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { GAME_W, GAME_H, COLORS } from '../constants.js';
 import { AdManager } from '../managers/AdManager.js';
 import { LivesManager } from '../managers/LivesManager.js';
+import { fitCamera } from '../resScale.js';
 
 export class FailScene extends Phaser.Scene {
   constructor() { super('Fail'); }
@@ -15,6 +16,7 @@ export class FailScene extends Phaser.Scene {
   }
 
   create() {
+    fitCamera(this);
     this._drawBg();
     this.time.delayedCall(400, () => this._showUI());
   }

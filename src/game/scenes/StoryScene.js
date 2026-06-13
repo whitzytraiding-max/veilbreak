@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_W, GAME_H } from '../constants.js';
 import { CHAPTERS } from '../data/chapters.js';
+import { fitCamera } from '../resScale.js';
 
 export class StoryScene extends Phaser.Scene {
   constructor() { super('Story'); }
@@ -13,6 +14,7 @@ export class StoryScene extends Phaser.Scene {
   }
 
   create() {
+    fitCamera(this);
     if (!this.panels.length) {
       this.scene.start('WorldMap');
       return;

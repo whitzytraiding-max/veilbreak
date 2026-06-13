@@ -42,7 +42,9 @@ export class ChainDrawer {
 
   _onDown(ptr) {
     if (this._locked) return;
-    const node = this.hexGrid.getCellAtPoint(ptr.x, ptr.y);
+    // worldX/worldY are zoom-aware (design space); ptr.x/y are in the larger
+    // canvas backing space once the retina camera zoom is applied.
+    const node = this.hexGrid.getCellAtPoint(ptr.worldX, ptr.worldY);
     if (!node || this.hexGrid.isVeil(node.col, node.row)) return;
 
     this.isDrawing = true;
@@ -57,7 +59,7 @@ export class ChainDrawer {
   _onMove(ptr) {
     if (!this.isDrawing || this.chain.length === 0) return;
 
-    const node = this.hexGrid.getCellAtPoint(ptr.x, ptr.y);
+    const node = this.hexGrid.getCellAtPoint(ptr.worldX, ptr.worldY);
     if (!node) return;
 
     const first = this.chain[0];

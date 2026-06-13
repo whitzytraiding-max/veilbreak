@@ -22,7 +22,7 @@ export const NODE_CONFIG = {
 };
 
 export const COLORS = {
-  BG:           0x080818,
+  BG:           0x05040F,
   HEX_FILL:     0x0D0D22,
   HEX_BORDER:   0x1A2244,
   HEX_HOVER:    0x223366,

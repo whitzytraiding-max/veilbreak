@@ -2,12 +2,14 @@
   "appId": "com.whitzy.veilbreak",
   "appName": "VeilBreak",
   "webDir": "dist",
+  "backgroundColor": "#05040F",
   "server": {
     "androidScheme": "https"
   },
   "ios": {
     "contentInset": "always",
-    "minVersion": "15.0"
+    "minVersion": "15.0",
+    "backgroundColor": "#05040F"
   },
   "plugins": {
     "Haptics": {},

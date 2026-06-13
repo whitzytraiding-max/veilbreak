@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_W, GAME_H, COLORS, NODE_CONFIG, COLS, ROWS, DEPTHS } from '../constants.js';
+import { fitCamera } from '../resScale.js';
 import { HexGrid } from '../objects/HexGrid.js';
 import { ChainDrawer } from '../objects/ChainDrawer.js';
 import { VeilManager } from '../objects/VeilManager.js';
@@ -26,6 +27,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
+    fitCamera(this);
     // Deep space base
     this.add.rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, 0x05040F, 1);
 

@@ -40,7 +40,7 @@ export default function App() {
         right: 'env(safe-area-inset-right, 0px)',
         bottom: 'env(safe-area-inset-bottom, 0px)',
         touchAction: 'none',
-        background: '#080818',
+        background: '#05040F',
       }}
     />
   );

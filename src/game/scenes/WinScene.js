@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { GAME_W, GAME_H, COLORS } from '../constants.js';
 import { GameState } from '../managers/GameState.js';
 import { AdManager } from '../managers/AdManager.js';
+import { fitCamera } from '../resScale.js';
 
 export class WinScene extends Phaser.Scene {
   constructor() { super('Win'); }
@@ -16,6 +17,7 @@ export class WinScene extends Phaser.Scene {
   }
 
   create() {
+    fitCamera(this);
     GameState.completeLevel(this.levelId, this.stars, this.nodesCleared);
 
     const shouldShowAd = AdManager.onLevelComplete();

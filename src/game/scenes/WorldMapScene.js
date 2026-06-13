@@ -4,6 +4,7 @@ import { GameState } from '../managers/GameState.js';
 import { LivesManager } from '../managers/LivesManager.js';
 import { LEVELS } from '../data/levels.js';
 import { CHAPTERS } from '../data/chapters.js';
+import { fitCamera } from '../resScale.js';
 
 const MAP_H = 3800;
 
@@ -53,6 +54,7 @@ export class WorldMapScene extends Phaser.Scene {
   constructor() { super('WorldMap'); }
 
   create() {
+    fitCamera(this);
     this._vel = 0;
     this._dragging = false;
     this._dragStartY = 0;
@@ -98,20 +100,25 @@ export class WorldMapScene extends Phaser.Scene {
   // ── Scroll input ────────────────────────────────────────────────────────────
 
   _setupScroll() {
+    // ptr.x/y are in canvas-backing space (design × RES once the retina zoom is
+    // applied), but scrollY is in world units — normalise pointer Y by the zoom.
+    const py = (ptr) => ptr.y / (this.cameras.main.zoom || 1);
+
     this.input.on('pointerdown', (ptr) => {
       this._dragging = true;
-      this._dragStartY = ptr.y;
+      this._dragStartY = py(ptr);
       this._dragStartScrollY = this.cameras.main.scrollY;
-      this._lastPtrY = ptr.y;
+      this._lastPtrY = py(ptr);
       this._vel = 0;
       this._didScroll = false;
     });
 
     this.input.on('pointermove', (ptr) => {
       if (!this._dragging) return;
-      const dy = this._dragStartY - ptr.y;
-      this._vel = (this._lastPtrY - ptr.y) * 0.6 + this._vel * 0.4;
-      this._lastPtrY = ptr.y;
+      const y = py(ptr);
+      const dy = this._dragStartY - y;
+      this._vel = (this._lastPtrY - y) * 0.6 + this._vel * 0.4;
+      this._lastPtrY = y;
       if (Math.abs(dy) > 6) this._didScroll = true;
       this.cameras.main.scrollY = Phaser.Math.Clamp(
         this._dragStartScrollY + dy,

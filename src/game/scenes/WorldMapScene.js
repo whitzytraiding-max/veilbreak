@@ -4,6 +4,8 @@ import { GameState } from '../managers/GameState.js';
 import { LEVELS } from '../data/levels.js';
 import { CHAPTERS } from '../data/chapters.js';
 import { fitCamera } from '../resScale.js';
+import { startMotes } from '../background.js';
+import { UI, gradientTitle, backButton } from '../ui.js';
 
 // Base winding path — one entry per level (index 0 = level 1). Chapter gaps are
 // added on top of these at runtime (see _buildDots) so labels get clear space.
@@ -71,6 +73,9 @@ export class WorldMapScene extends Phaser.Scene {
     this._drawLevelDots();
     this._drawFixedHeader();
     this._startShootingStars();
+    // Drifting energy motes in screen space (scrollFactor 0) so the map always
+    // feels alive while scrolling — matches the Menu and Game backdrops.
+    startMotes(this, 0x9A6AE8, { scrollFactor: 0, depth: 2, delay: 900 });
 
     // No camera.setBounds (its clamp assumes a centred origin and fights
     // fitCamera's 0,0 origin). scrollX pinned to 0; scrollY clamped manually.
@@ -493,28 +498,24 @@ export class WorldMapScene extends Phaser.Scene {
   _drawFixedHeader() {
     const DEPTH = 500;
 
-    this.add.rectangle(GAME_W / 2, 28, GAME_W, 56, 0x080818, 0.96)
-      .setScrollFactor(0).setDepth(DEPTH);
-    const border = this.add.graphics().setScrollFactor(0).setDepth(DEPTH);
-    border.lineStyle(1, COLORS.HEX_BORDER, 0.5);
-    border.lineBetween(0, 56, GAME_W, 56);
+    // Frosted header bar
+    const bar = this.add.graphics().setScrollFactor(0).setDepth(DEPTH);
+    bar.fillStyle(UI.violetBlack, 0.92);
+    bar.fillRect(0, 0, GAME_W, 56);
+    bar.fillStyle(UI.lavender, 0.05);
+    bar.fillRect(0, 0, GAME_W, 56);
+    bar.lineStyle(1, UI.lavender, 0.35);
+    bar.lineBetween(0, 56, GAME_W, 56);
 
-    this.add.text(22, 28, '←', {
-      fontFamily: 'Arial', fontSize: '28px', color: '#8899CC',
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 1);
-    this.add.zone(22, 28, 60, 56).setInteractive({ useHandCursor: true })
-      .setScrollFactor(0).setDepth(DEPTH + 2)
-      .on('pointerdown', () => this.scene.start('Menu'));
+    backButton(this, () => this.scene.start('Menu'), { x: 24, y: 28, scrollFactor: 0, depth: DEPTH + 1 });
 
-    this.add.text(GAME_W / 2, 28, 'REALMS', {
-      fontFamily: 'Georgia, serif', fontSize: '22px', color: '#FFFFFF', fontStyle: 'bold',
-      letterSpacing: 3,
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 1);
+    gradientTitle(this, GAME_W / 2, 28, 'REALMS', { size: 22, letterSpacing: 3 })
+      .setScrollFactor(0).setDepth(DEPTH + 1);
 
     const hint = this.add.text(GAME_W / 2, GAME_H - 22, 'scroll to explore', {
-      fontFamily: 'Georgia, serif', fontSize: '12px', color: '#334466',
+      fontFamily: UI.SERIF, fontSize: '12px', color: '#6A5A9A', fontStyle: 'italic',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 1);
-    this.tweens.add({ targets: hint, alpha: 0, delay: 2000, duration: 800 });
+    this.tweens.add({ targets: hint, alpha: 0, delay: 2200, duration: 900 });
   }
 
   // ── Level start ─────────────────────────────────────────────────────────────

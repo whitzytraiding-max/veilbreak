@@ -8,6 +8,14 @@ const NOTE_HZ = {
   LIGHT:  659.25, // E5  — bright, triumphant
 };
 
+// Major-pentatonic step ratios from the root — every degree is consonant, so
+// climbing them as a chain grows always sounds musical, never "wrong".
+const PENTA_RATIOS = [
+  1, 9 / 8, 5 / 4, 3 / 2, 5 / 3,        // root octave
+  2, 9 / 4, 5 / 2, 3, 10 / 3,           // +1 octave
+  4, 9 / 2, 5,                          // +2 octaves (very long chains)
+];
+
 class AudioManagerClass {
   constructor() {
     this._ctx = null;
@@ -62,14 +70,45 @@ class AudioManagerClass {
     osc.stop(now + duration + 0.01);
   }
 
+  // Short filtered-noise burst — gives clears/impacts physical "body" that pure
+  // oscillator tones lack. sweepTo bends the lowpass cutoff for a whoosh.
+  _noise(vol = 0.2, duration = 0.25, cutoffStart = 1200, cutoffEnd = 300) {
+    if (!this._ctx || !this._enabled) return;
+    const now = this._ctx.currentTime;
+    const len = Math.ceil(this._ctx.sampleRate * duration);
+    const buf = this._ctx.createBuffer(1, len, this._ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    const src = this._ctx.createBufferSource();
+    src.buffer = buf;
+    const filter = this._ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(cutoffStart, now);
+    filter.frequency.exponentialRampToValueAtTime(cutoffEnd, now + duration);
+    const gain = this._ctx.createGain();
+    gain.gain.setValueAtTime(vol, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(this._master);
+    src.start(now);
+    src.stop(now + duration + 0.01);
+  }
+
   // ── Public API ─────────────────────────────────────────────────────────────
 
-  // Each node added to chain plays its note — builds a melody as you drag
-  playNodeAdd(nodeType) {
+  // Each node added to chain plays its note, bent UP a pentatonic degree per
+  // step — so dragging a longer chain builds a satisfying rising arpeggio that
+  // telegraphs "this is getting big" before the clear even lands.
+  playNodeAdd(nodeType, step = 0) {
     this._boot();
     this._resume();
-    const freq = NOTE_HZ[nodeType] || 440;
+    const base = NOTE_HZ[nodeType] || 440;
+    const ratio = PENTA_RATIOS[Math.min(step, PENTA_RATIOS.length - 1)];
+    const freq = base * ratio;
     this._tone(freq, 'sine', 0.22, 0.14);
+    // faint upper octave sparkle, brighter as the chain climbs
+    this._tone(freq * 2, 'triangle', 0.04 + Math.min(step, 8) * 0.012, 0.10, 0.005);
   }
 
   // Chain burst — short chord on the node type's root note
@@ -83,6 +122,8 @@ class AudioManagerClass {
     this._tone(root,         'sine', vol,       0.35, 0);
     this._tone(root * 1.498, 'sine', vol * 0.6, 0.30, 0.02);
     this._tone(root * 2,     'sine', vol * 0.4, 0.25, 0.04);
+    // physical impact body under the chord — bigger whoosh for longer chains
+    this._noise(0.10 + Math.min(chainLen, 8) * 0.012, 0.22, 1600, 240);
   }
 
   // Convergence — rising arpeggio then big chord swell
@@ -96,6 +137,9 @@ class AudioManagerClass {
     [523.25, 659.25, 783.99].forEach((f, i) =>
       this._tone(f, 'triangle', 0.2, 0.9, freqs.length * 0.07 + i * 0.02)
     );
+    // Deep sub-boom + bright shimmer wash for the shockwave's physical impact
+    this._tone(65.41, 'sine', 0.3, 0.7, 0);
+    this._noise(0.16, 0.6, 4000, 200);
   }
 
   // Veil spread — low ominous pulse

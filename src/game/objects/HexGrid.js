@@ -271,34 +271,38 @@ export class HexGrid {
       const a = ease; // overall opacity ramp
       const pts = this._hexPoints(x, y, rr);
 
-      // 1. Soft purple corruption glow bleeding past the cell edge
-      g.fillStyle(0x8A1AFF, (0.06 + pulse * 0.06) * a);
-      g.fillCircle(x, y, rr * 1.35);
+      // 1. Wide purple corruption glow bleeding past the cell edge — makes
+      //    veiled cells "bloom" so they read at a glance across the board
+      g.fillStyle(0x8A1AFF, (0.10 + pulse * 0.10) * a);
+      g.fillCircle(x, y, rr * 1.5);
 
-      // 2. Dark membrane shrouding the orb (two layers for depth)
-      g.fillStyle(0x190630, 0.82 * a);
+      // 2. Frosted membrane — translucent, NOT opaque, so the orb's colour and
+      //    glyph still read through. This is the legibility fix: you can plan
+      //    around what's veiled instead of guessing.
+      g.fillStyle(0x2A0A4D, 0.42 * a);
       g.fillPoints(pts, true);
-      g.fillStyle(0x3A0A66, (0.35 + pulse * 0.15) * a);
+      g.fillStyle(0x5A1AA0, (0.14 + pulse * 0.10) * a);
       g.fillPoints(pts, true);
 
-      // 3. Bright pulsing edge — the clearest "this is veiled" signal
-      g.lineStyle(2.5 + pulse * 2, 0xC24DFF, (0.7 + pulse * 0.3) * a);
+      // 3. Bright pulsing edge — the clearest "this is veiled" signal,
+      //    pushed harder so the veil stands out against the dark board
+      g.lineStyle(3 + pulse * 2.5, 0xD66BFF, (0.85 + pulse * 0.15) * a);
       g.strokePoints(pts, true);
+      // inner halo of the edge for extra glow
+      g.lineStyle(1.5, 0xF0C4FF, (0.5 + pulse * 0.3) * a);
+      g.strokePoints(this._hexPoints(x, y, rr * 0.88), true);
 
-      // 4. Drifting corruption motes inside
+      // 4. Drifting corruption motes inside (kept toward the rim so they don't
+      //    cover the orb glyph in the centre)
       const spin = t * 0.002;
-      for (let i = 0; i < 3; i++) {
-        const ang = spin + i * 2.1;
-        const mr = (HEX_RADIUS - 9) * (0.35 + 0.32 * Math.sin(spin * 1.3 + i));
+      for (let i = 0; i < 4; i++) {
+        const ang = spin + i * 1.6;
+        const mr = (HEX_RADIUS - 6) * (0.55 + 0.28 * Math.sin(spin * 1.3 + i));
         const mx = x + Math.cos(ang) * mr;
         const my = y + Math.sin(ang) * mr;
-        g.fillStyle(0xE7B0FF, (0.22 + pulse * 0.2) * a);
-        g.fillCircle(mx, my, (2.4 + pulse * 1.6) * ease);
+        g.fillStyle(0xF0C4FF, (0.28 + pulse * 0.22) * a);
+        g.fillCircle(mx, my, (2.2 + pulse * 1.4) * ease);
       }
-
-      // 5. Glowing core
-      g.fillStyle(0xCC55FF, (0.2 + pulse * 0.25) * a);
-      g.fillCircle(x, y, (4 + pulse * 3) * ease);
     });
   }
 }

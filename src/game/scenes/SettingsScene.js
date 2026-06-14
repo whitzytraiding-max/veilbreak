@@ -4,6 +4,7 @@ import { Settings } from '../managers/SettingsManager.js';
 import { AudioManager } from '../managers/AudioManager.js';
 import { Haptic } from '../managers/Haptics.js';
 import { fitCamera } from '../resScale.js';
+import { UI, gradientTitle, softGlow, frostedButton, frostedPanel, backButton } from '../ui.js';
 
 export class SettingsScene extends Phaser.Scene {
   constructor() { super('Settings'); }
@@ -20,42 +21,38 @@ export class SettingsScene extends Phaser.Scene {
     ];
     rows.forEach((r, i) => this._toggleRow(GAME_H * 0.30 + i * 78, r.label, r.key));
 
-    this._button(GAME_H * 0.62, 'How to Play', 0x2A1F4A, 0xCBA6FF, () => this._showHowTo());
+    frostedButton(this, GAME_W / 2, GAME_H * 0.62, 'How to Play', () => this._showHowTo(), { variant: 'primary', w: 230, fontSize: 20 });
 
     this.add.text(GAME_W / 2, GAME_H - 24, 'VeilBreak · v0.1', {
-      fontFamily: 'monospace', fontSize: '11px', color: '#334466',
+      fontFamily: 'monospace', fontSize: '11px', color: '#3A2A5A',
     }).setOrigin(0.5);
   }
 
   _drawBg() {
-    this.add.rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, 0x05040F, 1);
-    [[80, 180, 0x1A0A3A], [330, 520, 0x0A1828], [200, 760, 0x15082A]].forEach(([x, y, c]) => {
-      this.add.image(x, y, 'glow').setDisplaySize(360, 360).setTint(c)
-        .setAlpha(0.4).setBlendMode(Phaser.BlendModes.ADD);
-    });
-    for (let i = 0; i < 90; i++) {
-      this.add.circle(Math.random() * GAME_W, Math.random() * GAME_H,
-        Math.random() * 1.3 + 0.3, 0xFFFFFF, Math.random() * 0.5 + 0.1);
+    const g = this.add.graphics();
+    g.fillGradientStyle(UI.bgIndigo, UI.bgIndigo, UI.bgMid, UI.violetBlack, 1);
+    g.fillRect(0, 0, GAME_W, GAME_H);
+    softGlow(this, 70, 200, UI.lavender, 10, 0.12);
+    softGlow(this, 340, 560, UI.etherBlue, 9, 0.08);
+    softGlow(this, 200, 780, UI.softRose, 8, 0.06);
+    for (let i = 0; i < 70; i++) {
+      const a = Math.random() * 0.45 + 0.1;
+      const s = this.add.circle(Math.random() * GAME_W, Math.random() * GAME_H, Math.random() * 1.2 + 0.3, 0xFFFFFF, a);
+      this.tweens.add({ targets: s, alpha: a * 0.12, duration: 1400 + Math.random() * 2600, yoyo: true, repeat: -1, delay: Math.random() * 3000, ease: 'Sine.easeInOut' });
     }
   }
 
   _drawHeader() {
-    this.add.text(20, 36, '←', { fontFamily: 'Arial', fontSize: '28px', color: '#8899CC' }).setOrigin(0.5);
-    this.add.zone(24, 36, 64, 60).setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => this.scene.start('Menu'));
-    this.add.text(GAME_W / 2, 50, 'SETTINGS', {
-      fontFamily: 'Georgia, serif', fontSize: '26px', color: '#FFFFFF', fontStyle: 'bold', letterSpacing: 4,
-    }).setOrigin(0.5);
+    backButton(this, () => this.scene.start('Menu'));
+    gradientTitle(this, GAME_W / 2, 50, 'SETTINGS', { size: 26, letterSpacing: 4 });
   }
 
   _toggleRow(y, label, key) {
     const m = 30, w = GAME_W - m * 2;
-    const g = this.add.graphics();
-    g.fillStyle(0x0C0C22, 0.85); g.fillRoundedRect(m, y - 26, w, 52, 12);
-    g.lineStyle(1, 0x2A3358, 0.7); g.strokeRoundedRect(m, y - 26, w, 52, 12);
+    frostedPanel(this, GAME_W / 2, y, w, 52, { radius: 14, fill: 0.06 });
 
     this.add.text(m + 18, y, label, {
-      fontFamily: 'Georgia, serif', fontSize: '16px', color: '#DDE6FF',
+      fontFamily: UI.SERIF, fontSize: '16px', color: '#E9D5FF',
     }).setOrigin(0, 0.5);
 
     this._switch(GAME_W - m - 44, y, Settings.get()[key], (on) => {
@@ -73,12 +70,17 @@ export class SettingsScene extends Phaser.Scene {
     const track = this.add.graphics();
     const knob = this.add.circle(0, y, knobR, 0xFFFFFF, 1);
 
+    const glow = this.add.image(x, y, 'glow').setTint(UI.lavender).setScale(1.7).setAlpha(0).setBlendMode(Phaser.BlendModes.ADD);
     const render = () => {
       track.clear();
-      track.fillStyle(on ? 0x2E9E5B : 0x33405E, 1);
+      track.fillStyle(on ? UI.lavender : 0x2A2348, on ? 0.85 : 1);
       track.fillRoundedRect(x - trackW / 2, y - trackH / 2, trackW, trackH, trackH / 2);
+      track.lineStyle(1, on ? UI.paleViolet : 0x4A4068, on ? 0.7 : 0.5);
+      track.strokeRoundedRect(x - trackW / 2, y - trackH / 2, trackW, trackH, trackH / 2);
       knob.x = on ? x + trackW / 2 - knobR - 3 : x - trackW / 2 + knobR + 3;
-      knob.setFillStyle(on ? 0xEAFFF2 : 0xAAB4CC, 1);
+      knob.setFillStyle(on ? 0xFBFAFF : 0x9A8AC0, 1);
+      glow.x = knob.x;
+      glow.setAlpha(on ? 0.5 : 0);
     };
     render();
 
@@ -91,22 +93,6 @@ export class SettingsScene extends Phaser.Scene {
       });
   }
 
-  _button(y, label, bg, accent, onTap) {
-    const w = 230, h = 52;
-    const g = this.add.graphics();
-    g.fillStyle(bg, 1); g.fillRoundedRect(GAME_W / 2 - w / 2, y - h / 2, w, h, h / 2);
-    g.lineStyle(1.5, accent, 0.6); g.strokeRoundedRect(GAME_W / 2 - w / 2, y - h / 2, w, h, h / 2);
-    const txt = this.add.text(GAME_W / 2, y, label, {
-      fontFamily: 'Georgia, serif', fontSize: '18px', color: '#FFFFFF', fontStyle: 'bold',
-    }).setOrigin(0.5);
-    this.add.zone(GAME_W / 2, y, w, h).setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => {
-        this.tweens.add({ targets: [g, txt], scaleX: 0.96, scaleY: 0.96, duration: 80, yoyo: true });
-        AudioManager.playTap();
-        this.time.delayedCall(90, onTap);
-      });
-  }
-
   // ── How to Play overlay ─────────────────────────────────────────────────────
 
   _showHowTo() {
@@ -114,10 +100,9 @@ export class SettingsScene extends Phaser.Scene {
     const items = [];
     const add = (o) => { items.push(o); o.setDepth(D); };
 
-    add(this.add.rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, 0x03020A, 0.92).setInteractive());
-    add(this.add.text(GAME_W / 2, GAME_H * 0.12, 'HOW TO PLAY', {
-      fontFamily: 'Georgia, serif', fontSize: '22px', color: '#FFFFFF', fontStyle: 'bold', letterSpacing: 3,
-    }).setOrigin(0.5));
+    add(this.add.rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, 0x05030F, 0.94).setInteractive());
+    add(this.add.image(GAME_W / 2, GAME_H * 0.16, 'glow').setTint(UI.lavender).setScale(10, 5).setAlpha(0.18).setBlendMode(Phaser.BlendModes.SCREEN));
+    add(gradientTitle(this, GAME_W / 2, GAME_H * 0.12, 'HOW TO PLAY', { size: 22, letterSpacing: 3 }));
 
     const lines = [
       ['◈  Mend', 'Drag across 3 or more matching orbs to clear them.'],
@@ -128,19 +113,17 @@ export class SettingsScene extends Phaser.Scene {
     let y = GAME_H * 0.22;
     lines.forEach(([title, body]) => {
       add(this.add.text(36, y, title, {
-        fontFamily: 'Georgia, serif', fontSize: '16px', color: '#CBA6FF', fontStyle: 'bold',
-      }).setOrigin(0, 0));
+        fontFamily: UI.SERIF, fontSize: '16px', color: '#CBA6FF', fontStyle: 'bold',
+      }).setOrigin(0, 0).setShadow(0, 0, '#C084FC', 8, false, true));
       add(this.add.text(36, y + 24, body, {
-        fontFamily: 'Georgia, serif', fontSize: '13px', color: '#AAB6D0',
+        fontFamily: UI.SERIF, fontSize: '13px', color: '#B9A6DD',
         wordWrap: { width: GAME_W - 72 }, lineSpacing: 4,
       }).setOrigin(0, 0));
       y += 110;
     });
 
-    const close = this.add.text(GAME_W / 2, GAME_H * 0.9, 'Got it', {
-      fontFamily: 'Georgia, serif', fontSize: '19px', color: '#FFFFFF', fontStyle: 'bold',
-    }).setOrigin(0.5).setDepth(D).setInteractive({ useHandCursor: true });
-    add(close);
-    close.on('pointerdown', () => items.forEach(o => o.destroy()));
+    const close = frostedButton(this, GAME_W / 2, GAME_H * 0.9, 'Got it', () => items.forEach(o => o.destroy()), { variant: 'secondary' });
+    close.setDepth(D); items.push(close);
+    close._zone.setDepth(D);
   }
 }

@@ -6,6 +6,8 @@ import { ChainDrawer } from '../objects/ChainDrawer.js';
 import { VeilManager } from '../objects/VeilManager.js';
 import { Effects } from '../objects/Effects.js';
 import { getLevelData } from '../data/levels.js';
+import { CHAPTERS } from '../data/chapters.js';
+import { createCosmicBackground } from '../background.js';
 import { GameState } from '../managers/GameState.js';
 import { AdManager } from '../managers/AdManager.js';
 import { AudioManager } from '../managers/AudioManager.js';
@@ -29,53 +31,7 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     fitCamera(this);
-    // Deep space base
-    this.add.rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, 0x05040F, 1);
-
-    // Nebula blobs — soft colored clouds in background
-    const nebulaDefs = [
-      { x: 70,  y: 180, r: 110, color: 0x1A0A3A, a: 0.55 },
-      { x: 330, y: 370, r: 90,  color: 0x0A1828, a: 0.45 },
-      { x: 180, y: 620, r: 120, color: 0x180A2A, a: 0.4  },
-      { x: 320, y: 680, r: 70,  color: 0x0A1A1A, a: 0.35 },
-    ];
-    nebulaDefs.forEach(n => {
-      for (let layer = 3; layer >= 1; layer--) {
-        const blob = this.add.circle(n.x, n.y, n.r * layer * 0.42, n.color, n.a / layer);
-        this.tweens.add({
-          targets: blob,
-          x: n.x + (Math.random() - 0.5) * 20,
-          y: n.y + (Math.random() - 0.5) * 15,
-          duration: 8000 + Math.random() * 5000,
-          yoyo: true,
-          repeat: -1,
-          ease: 'Sine.easeInOut',
-          delay: Math.random() * 4000,
-        });
-      }
-    });
-
-    // Twinkling stars
-    for (let i = 0; i < 90; i++) {
-      const sx = Math.random() * GAME_W;
-      const sy = Math.random() * GAME_H;
-      const sr = Math.random() * 1.3 + 0.2;
-      const sa = Math.random() * 0.5 + 0.1;
-      const star = this.add.circle(sx, sy, sr, 0xFFFFFF, sa);
-      this.tweens.add({
-        targets: star,
-        alpha: sa * 0.1,
-        duration: 1200 + Math.random() * 2800,
-        yoyo: true,
-        repeat: -1,
-        delay: Math.random() * 3000,
-        ease: 'Sine.easeInOut',
-      });
-    }
-
-    // Vignette — darken edges so grid pops
-    const corners = [[0, 0], [GAME_W, 0], [0, GAME_H], [GAME_W, GAME_H]];
-    corners.forEach(([cx, cy]) => this.add.circle(cx, cy, 220, 0x020108, 0.65));
+    this._createBackground();
 
     this.hexGrid = new HexGrid(this);
     this.hexGrid.populate(this.levelData.nodeTypes, this.levelData.anchors || []);
@@ -106,6 +62,17 @@ export class GameScene extends Phaser.Scene {
       if (!Tutorial.seen(g.type)) queue.push(g.type);
     });
     if (queue.length) this._showTutorial(queue);
+  }
+
+  // ── Background ───────────────────────────────────────────────────────────────
+
+  // A living, chapter-tinted backdrop — see src/game/background.js. The
+  // chapter's accentColor flavours the nebula, rising motes and aurora so every
+  // realm feels distinct, and it's always gently in motion so the board never
+  // feels dead.
+  _createBackground() {
+    const chapter = CHAPTERS.find(c => c.id === (this.levelData.chapter || 1));
+    createCosmicBackground(this, { accent: chapter?.accentColor ?? 0x3B7AE8 });
   }
 
   // ── Tutorial cards ───────────────────────────────────────────────────────────
@@ -270,6 +237,22 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  // Brief freeze-frame for big moments — everything stalls for `ms` real
+  // milliseconds then snaps back, which makes the convergence land with weight.
+  // Uses a real timer (not a scaled scene timer) so the resume always fires.
+  _hitStop(ms = 80) {
+    if (this._hitStopActive) return;
+    this._hitStopActive = true;
+    this.time.timeScale = 0.0001;
+    this.tweens.timeScale = 0.0001;
+    setTimeout(() => {
+      if (!this.scene || !this.scene.isActive()) return;
+      this.time.timeScale = 1;
+      this.tweens.timeScale = 1;
+      this._hitStopActive = false;
+    }, ms);
+  }
+
   // ── Chain handlers ──────────────────────────────────────────────────────────
 
   _onChainComplete(chain, veilCleared) {
@@ -295,6 +278,9 @@ export class GameScene extends Phaser.Scene {
       else if (chainLen >= 5) this._showLabel('GREAT!',     '#FFCC44');
       else if (chainLen >= 4) this._showLabel('NICE!',      '#AADDFF');
       this.effects.screenFlash(NODE_CONFIG[chain[0].type].glow, chainLen >= 5 ? 0.18 : 0.09);
+      // Scaled camera kick — small for a 3-chain, punchy for a big one
+      const intensity = Math.min(0.002 + (chainLen - 3) * 0.0011, 0.009);
+      this.cameras.main.shake(120 + chainLen * 12, intensity);
     } catch (_) {}
 
     // Count cleared anchors
@@ -342,6 +328,7 @@ export class GameScene extends Phaser.Scene {
       const glowHex = '#' + NODE_CONFIG[type].glow.toString(16).padStart(6, '0');
       this._showLabel('CONVERGENCE!', glowHex);
       this.cameras.main.shake(300, 0.01);
+      this._hitStop(80);
     } catch (_) {}
 
     const convScore = this._chainScore(chain.length) * 3

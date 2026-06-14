@@ -52,7 +52,7 @@ export class ChainDrawer {
     this.pendingConvergence = false;
     this._chainVeilCleared = 0;
     node.highlight(true);
-    AudioManager.playNodeAdd(node.type);
+    AudioManager.playNodeAdd(node.type, 0);
     this._redrawLine();
   }
 
@@ -81,7 +81,7 @@ export class ChainDrawer {
     ) {
       this.chain.push(node);
       node.highlight(true);
-      AudioManager.playNodeAdd(node.type);
+      AudioManager.playNodeAdd(node.type, this.chain.length - 1);
       this.pendingConvergence = true;
       this._drawConvergenceRing(first, node);
       this._redrawLine();
@@ -115,7 +115,7 @@ export class ChainDrawer {
   _addToChain(node) {
     this.chain.push(node);
     node.highlight(true);
-    AudioManager.playNodeAdd(node.type);
+    AudioManager.playNodeAdd(node.type, this.chain.length - 1);
     this.hexGrid.getNeighbors(node.col, node.row).forEach(([c, r]) => {
       if (this.hexGrid.clearVeilAt(c, r)) this._chainVeilCleared++;
     });

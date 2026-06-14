@@ -3,6 +3,7 @@ import { GAME_W, GAME_H, COLORS } from '../constants.js';
 import { GameState } from '../managers/GameState.js';
 import { AdManager } from '../managers/AdManager.js';
 import { fitCamera } from '../resScale.js';
+import { UI, gradientTitle, softGlow, frostedButton } from '../ui.js';
 
 export class WinScene extends Phaser.Scene {
   constructor() { super('Win'); }
@@ -45,9 +46,17 @@ export class WinScene extends Phaser.Scene {
   }
 
   _drawBg() {
-    this.add.rectangle(GAME_W / 2, GAME_H / 2, GAME_W, GAME_H, COLORS.BG, 0.95);
-    for (let i = 5; i >= 1; i--) {
-      this.add.circle(GAME_W / 2, GAME_H * 0.38, i * 55, 0x2222AA, 0.06 * i);
+    const g = this.add.graphics();
+    g.fillGradientStyle(UI.bgIndigo, UI.bgIndigo, UI.bgMid, UI.violetBlack, 1);
+    g.fillRect(0, 0, GAME_W, GAME_H);
+    // Soft lavender bloom + warm celebratory glow behind the result
+    softGlow(this, GAME_W / 2, GAME_H * 0.36, UI.lavender, 11, 0.2);
+    softGlow(this, GAME_W / 2, GAME_H * 0.30, UI.gold, 7, 0.14, Phaser.BlendModes.ADD);
+    // faint twinkling stars
+    for (let i = 0; i < 50; i++) {
+      const a = Math.random() * 0.4 + 0.1;
+      const s = this.add.circle(Math.random() * GAME_W, Math.random() * GAME_H, Math.random() * 1.1 + 0.3, 0xFFFFFF, a);
+      this.tweens.add({ targets: s, alpha: a * 0.1, duration: 1400 + Math.random() * 2600, yoyo: true, repeat: -1, delay: Math.random() * 3000, ease: 'Sine.easeInOut' });
     }
   }
 
@@ -85,9 +94,7 @@ export class WinScene extends Phaser.Scene {
       });
     }
 
-    this.add.text(GAME_W / 2, GAME_H * 0.40, 'LEVEL COMPLETE', {
-      fontFamily: 'Georgia, serif', fontSize: '24px', color: '#FFFFFF', fontStyle: 'bold',
-    }).setOrigin(0.5);
+    gradientTitle(this, GAME_W / 2, GAME_H * 0.40, 'LEVEL COMPLETE', { size: 25, letterSpacing: 2 });
 
     // Score — hero element
     const scoreNum = this.add.text(GAME_W / 2, GAME_H * 0.51, this.score.toLocaleString(), {
@@ -111,41 +118,19 @@ export class WinScene extends Phaser.Scene {
       }).setOrigin(0.5);
     }
 
-    // Next level button
-    this._addButton(GAME_W / 2, GAME_H * 0.74, 'NEXT LEVEL', 0x7733CC, 0xDDAAFF, () => {
-      const nextId = this.levelId + 1;
-      this.scene.start('Game', { levelId: nextId });
-    });
+    // Next level — primary CTA with breathing glow
+    frostedButton(this, GAME_W / 2, GAME_H * 0.75, 'NEXT LEVEL', () => {
+      this.scene.start('Game', { levelId: this.levelId + 1 });
+    }, { variant: 'primary', breathe: true });
 
     // Replay
-    this._addButton(GAME_W / 2, GAME_H * 0.84, 'Replay', 0x223355, 0x8899CC, () => {
+    frostedButton(this, GAME_W / 2, GAME_H * 0.845, 'Replay', () => {
       this.scene.start('Game', { levelId: this.levelId });
-    }, true);
+    }, { variant: 'secondary' });
 
     // Map
-    this._addButton(GAME_W / 2, GAME_H * 0.91, 'Map', 0x111122, 0x667799, () => {
+    frostedButton(this, GAME_W / 2, GAME_H * 0.915, 'Map', () => {
       this.scene.start('WorldMap');
-    }, true);
-  }
-
-  _addButton(x, y, label, bgColor, textColor, onTap, small = false) {
-    const w = small ? 140 : 220;
-    const h = small ? 40 : 52;
-    const bg = this.add.graphics();
-    bg.fillStyle(bgColor, 1);
-    bg.fillRoundedRect(x - w / 2, y - h / 2, w, h, h / 2);
-
-    const txt = this.add.text(x, y, label, {
-      fontFamily: 'Georgia, serif',
-      fontSize: small ? '15px' : '22px',
-      color: `#${textColor.toString(16).padStart(6, '0')}`,
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
-
-    this.add.zone(x, y, w, h).setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => {
-        this.tweens.add({ targets: [bg, txt], scaleX: 0.95, scaleY: 0.95, duration: 80, yoyo: true });
-        this.time.delayedCall(100, onTap);
-      });
+    }, { variant: 'ghost' });
   }
 }

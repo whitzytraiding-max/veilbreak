@@ -8,8 +8,8 @@ const AD_IDS = {
     rewarded:     'ca-app-pub-5758394034635206/2872237195',
   },
   android: {
-    interstitial: 'ca-app-pub-3940256099942544/1033173712', // Google test ID — replace when Android app added to AdMob
-    rewarded:     'ca-app-pub-3940256099942544/5224354917', // Google test ID
+    interstitial: 'ca-app-pub-5758394034635206/8304235691',
+    rewarded:     'ca-app-pub-5758394034635206/9142969795',
   },
 };
 

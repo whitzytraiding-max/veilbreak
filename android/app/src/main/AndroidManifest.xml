@@ -29,12 +29,11 @@
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- AdMob App ID. TODO: replace this Google TEST id with the real
-             Android App ID once the Android app is created in AdMob. Must match
+        <!-- AdMob App ID (real Android app). Must match
              plugins.AdMob.appId.android in capacitor.config.json. -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713"
+            android:value="ca-app-pub-5758394034635206~2980927684"
         />
     </application>
 

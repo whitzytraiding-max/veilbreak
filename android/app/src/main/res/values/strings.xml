@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">VeilBreak</string>
+    <string name="title_activity_main">VeilBreak</string>
+    <string name="package_name">com.whitzy.veilbreak</string>
+    <string name="custom_url_scheme">com.whitzy.veilbreak</string>
+</resources>

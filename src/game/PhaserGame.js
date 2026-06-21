@@ -14,12 +14,14 @@ import { AdManager } from './managers/AdManager.js';
 export function createPhaserGame(parent) {
   AdManager.init();
 
-  // Retina crispness: Phaser renders the canvas backing store at width×height.
-  // A 400×800 design upscaled to a 3× phone screen looks soft, so we render the
-  // canvas at design×RES backing pixels and zoom every scene camera by RES — the
-  // game keeps working in 400×800 design coords (see fitCamera in scenes), while
-  // the actual pixels drawn match the device. Capped at 3 to bound fill-rate.
-  const RES = Math.min(Math.max(Math.round(window.devicePixelRatio || 1), 1), 3);
+  // Retina crispness vs fill-rate: Phaser renders the canvas backing store at
+  // width×height. A 400×800 design upscaled to a high-DPR phone looks soft, so
+  // we render at design×RES backing pixels and zoom every scene camera by RES
+  // (game keeps working in 400×800 design coords, see fitCamera in scenes).
+  // Capped at 2: this game leans heavily on additive-blended glows, so fill-rate
+  // is the bottleneck — 3× backing (1200×2400) tanks frame-rate and battery on
+  // mid devices for little visible gain on soft glow art. 2× stays crisp.
+  const RES = Math.min(Math.max(Math.round(window.devicePixelRatio || 1), 1), 2);
   window.__RES = RES;
 
   const config = {
